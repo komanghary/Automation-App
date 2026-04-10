@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Coroco House</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <style>
 :root {
   --bg:       #f1f5f9;
@@ -362,10 +365,10 @@ table { background:var(--surface); }
   </div>
 
   <div class="nav-tabs">
-    <button class="ntab active" data-panel="procs"   onclick="switchTab(this)">Processes</button>
-    <button class="ntab"        data-panel="youtube" onclick="switchTab(this)">YouTube</button>
+    <button class="ntab active" data-panel="youtube" onclick="switchTab(this)">YouTube</button>
     <button class="ntab"        data-panel="scraper" onclick="switchTab(this)">Scraper</button>
     <button class="ntab"        data-panel="shell"   onclick="switchTab(this)">⚡ Terminal</button>
+    <button class="ntab"        data-panel="procs"   onclick="switchTab(this)">Processes</button>
   </div>
 
   <div class="hdr-chips">
@@ -402,12 +405,12 @@ table { background:var(--surface); }
 <div class="main">
 
   <!-- Processes -->
-  <div class="panel panel-procs active" id="panel-procs">
+  <div class="panel panel-procs" id="panel-procs">
     <!-- built by JS -->
   </div>
 
   <!-- YouTube -->
-  <div class="panel" id="panel-youtube">
+  <div class="panel active" id="panel-youtube" style="display:block">
     <div class="panel-hd">YouTube Archive</div>
     <div id="yt-content">
       <div class="empty">
@@ -435,8 +438,8 @@ table { background:var(--surface); }
     </div>
   </div>
 
-  <!-- Shell Terminal -->
-  <div class="panel" id="panel-shell" style="padding:0;display:none;flex-direction:column;">
+  <!-- Shell Terminal (Interactive PTY) -->
+  <div class="panel" id="panel-shell" style="padding:0;display:none;flex-direction:column;overflow:hidden;">
     <!-- Auth screen -->
     <div id="shell-auth" style="flex:1;display:flex;align-items:center;justify-content:center;">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px 36px;min-width:340px;box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;">
@@ -445,7 +448,8 @@ table { background:var(--surface); }
         <input id="shell-p1" type="password" placeholder="Password 1 (Monitor password)..."
           style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;">
         <input id="shell-p2" type="password" placeholder="Password 2 (Shell password)..."
-          style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;">
+          style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;"
+          onkeydown="if(event.key==='Enter')shellConnect()">
         <div id="shell-auth-err" style="font-size:12px;color:#f87171;min-height:16px;"></div>
         <button onclick="shellConnect()"
           style="padding:10px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
@@ -453,20 +457,16 @@ table { background:var(--surface); }
         </button>
       </div>
     </div>
-    <!-- Terminal screen -->
-    <div id="shell-term" style="display:none;flex:1;flex-direction:column;height:100%;">
-      <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-        <span style="font-size:12px;font-weight:600;color:var(--running)">● Connected</span>
-        <span id="shell-cwd" style="font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-        <button onclick="shellDisconnect()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;">Disconnect</button>
+    <!-- Terminal screen (xterm.js) -->
+    <div id="shell-term" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+        <span id="pty-status" style="font-size:12px;font-weight:600;color:var(--running)">● Connected</span>
+        <span style="font-size:11px;color:var(--txt3);flex:1;">Interactive PTY — cmd.exe</span>
+        <button onclick="ptyResize()" style="font-size:11px;padding:3px 8px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;">Fit</button>
+        <button onclick="ptyKillSession()" style="font-size:11px;padding:3px 8px;border:1px solid #ef4444;border-radius:5px;background:transparent;color:#ef4444;cursor:pointer;font-family:inherit;" title="Kill cmd.exe dan spawn baru">Kill</button>
+        <button onclick="shellDisconnect()" style="font-size:11px;padding:3px 10px;border:1px solid var(--border2);border-radius:5px;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;">Disconnect</button>
       </div>
-      <div id="shell-output" style="flex:1;background:#0f172a;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.7;padding:12px 16px;overflow-y:auto;color:#94a3b8;white-space:pre-wrap;word-break:break-all;"></div>
-      <div style="background:#0a0f1e;border-top:1px solid #1e293b;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <span id="shell-prompt" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#38bdf8;flex-shrink:0;">$</span>
-        <input id="shell-input" type="text" placeholder="Ketik perintah..."
-          style="flex:1;background:transparent;border:none;outline:none;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:12px;"
-          onkeydown="shellKey(event)">
-      </div>
+      <div id="pty-container" style="flex:1;overflow:hidden;background:#0f172a;"></div>
     </div>
   </div>
 
@@ -578,14 +578,10 @@ document.addEventListener('keydown', e => {
 
 // ── Control ───────────────────────────────────────────────
 async function apiProc(name, action) {
-  let password = null;
-  if (action === 'stop' || action === 'restart') {
-    const label = action === 'stop' ? `Stop ${PROC_TITLES[name]}` : `Restart ${PROC_TITLES[name]}`;
-    password = await showPwdModal(label);
-    if (password === null) return; // cancelled
-  }
-  const headers = { 'Content-Type': 'application/json' };
-  if (password !== null) headers['X-Monitor-Password'] = password;
+  const labels = { start: `Start ${PROC_TITLES[name]}`, stop: `Stop ${PROC_TITLES[name]}`, restart: `Restart ${PROC_TITLES[name]}` };
+  const password = await showPwdModal(labels[action] || action);
+  if (password === null) return; // cancelled
+  const headers = { 'Content-Type': 'application/json', 'X-Monitor-Password': password };
   const res = await fetch(`/api/process/${name}/${action}`, { method: 'POST', headers });
   if (res.status === 401) {
     document.getElementById('pwd-modal').style.display = 'flex';
@@ -852,57 +848,49 @@ buildCards();
 PROCS.forEach(connectWS);
 pollStatus();
 setInterval(pollStatus, 5000);
+// Auto-load YouTube on first open (it's the default active tab)
+loadYoutube();
 
-// ── Shell Terminal ─────────────────────────────────────────
+// ── Interactive PTY Terminal ───────────────────────────────
 let shellWs = null;
-let shellHistory = [];
-let shellHistIdx = -1;
-let shellBusy = false;
+let ptyTerm = null;
+let fitAddon = null;
 
 function shellConnect() {
   const p1 = document.getElementById('shell-p1').value;
   const p2 = document.getElementById('shell-p2').value;
   if (!p1 || !p2) { document.getElementById('shell-auth-err').textContent = 'Isi kedua password'; return; }
+  sessionStorage.setItem('_sp1', p1); sessionStorage.setItem('_sp2', p2);
   document.getElementById('shell-auth-err').textContent = 'Menghubungkan...';
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  shellWs = new WebSocket(`${proto}//${location.host}/terminal`);
+  shellWs = new WebSocket(`${proto}//${location.host}/pty`);
   shellWs.onopen = () => shellWs.send(JSON.stringify({p1, p2}));
   shellWs.onmessage = e => {
     const msg = JSON.parse(e.data);
     if (msg.t === 'auth') {
       if (msg.ok) {
         document.getElementById('shell-auth').style.display = 'none';
-        const term = document.getElementById('shell-term');
-        term.style.display = 'flex';
         document.getElementById('shell-p1').value = '';
         document.getElementById('shell-p2').value = '';
-        document.getElementById('shell-output').textContent = '⚡ Shell terhubung. Ketik perintah di bawah.\n\n';
-        document.getElementById('shell-input').focus();
+        const termDiv = document.getElementById('shell-term');
+        termDiv.style.display = 'flex';
+        _initXterm();
       } else {
         document.getElementById('shell-auth-err').textContent = '❌ ' + (msg.msg || 'Password salah');
         shellWs.close(); shellWs = null;
       }
       return;
     }
-    if (msg.t === 'out') {
-      const out = document.getElementById('shell-output');
-      out.textContent += msg.d;
-      out.scrollTop = out.scrollHeight;
-    }
-    if (msg.t === 'done') {
-      shellBusy = false;
-      if (msg.cwd) document.getElementById('shell-cwd').textContent = msg.cwd;
-      document.getElementById('shell-input').disabled = false;
-      document.getElementById('shell-input').focus();
+    if (msg.t === 'data' && ptyTerm) ptyTerm.write(msg.d);
+    if (msg.t === 'exit') {
+      if (ptyTerm) ptyTerm.write('\r\n\x1b[33m[Session ended]\x1b[0m\r\n');
+      document.getElementById('pty-status').textContent = '● Disconnected';
+      document.getElementById('pty-status').style.color = 'var(--stopped)';
     }
   };
   shellWs.onclose = () => {
-    if (document.getElementById('shell-term').style.display !== 'none') {
-      const out = document.getElementById('shell-output');
-      out.textContent += '\n[Koneksi terputus]\n';
-      out.scrollTop = out.scrollHeight;
-    }
-    shellWs = null; shellBusy = false;
+    if (ptyTerm) ptyTerm.write('\r\n\x1b[90m[Koneksi terputus]\x1b[0m\r\n');
+    shellWs = null;
   };
   shellWs.onerror = () => {
     document.getElementById('shell-auth-err').textContent = '❌ Gagal konek ke server';
@@ -910,45 +898,70 @@ function shellConnect() {
   };
 }
 
+function _initXterm() {
+  if (ptyTerm) { ptyTerm.dispose(); ptyTerm = null; }
+  ptyTerm = new Terminal({
+    fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+    fontSize: 13,
+    theme: {
+      background: '#0f172a', foreground: '#e2e8f0',
+      cursor: '#38bdf8', selectionBackground: '#334155',
+      black: '#1e293b', brightBlack: '#475569',
+      red: '#f87171', brightRed: '#fca5a5',
+      green: '#34d399', brightGreen: '#6ee7b7',
+      yellow: '#fbbf24', brightYellow: '#fde68a',
+      blue: '#60a5fa', brightBlue: '#93c5fd',
+      magenta: '#a78bfa', brightMagenta: '#c4b5fd',
+      cyan: '#38bdf8', brightCyan: '#7dd3fc',
+      white: '#cbd5e1', brightWhite: '#f1f5f9',
+    },
+    cursorBlink: true,
+    scrollback: 5000,
+    convertEol: false,
+  });
+  fitAddon = new FitAddon.FitAddon();
+  ptyTerm.loadAddon(fitAddon);
+  ptyTerm.open(document.getElementById('pty-container'));
+  fitAddon.fit();
+  ptyTerm.onData(data => {
+    if (shellWs && shellWs.readyState === WebSocket.OPEN)
+      shellWs.send(JSON.stringify({t: 'input', d: data}));
+  });
+  ptyResize();
+}
+
+function ptyResize() {
+  if (!fitAddon || !ptyTerm || !shellWs) return;
+  fitAddon.fit();
+  shellWs.send(JSON.stringify({t: 'resize', rows: ptyTerm.rows, cols: ptyTerm.cols}));
+}
+
 function shellDisconnect() {
   if (shellWs) { shellWs.close(); shellWs = null; }
+  if (ptyTerm) { ptyTerm.dispose(); ptyTerm = null; }
   document.getElementById('shell-term').style.display = 'none';
   document.getElementById('shell-auth').style.display = 'flex';
   document.getElementById('shell-auth-err').textContent = '';
+  document.getElementById('pty-status').textContent = '● Connected';
+  document.getElementById('pty-status').style.color = 'var(--running)';
 }
 
-function shellKey(e) {
-  if (e.key === 'Enter') {
-    const inp = document.getElementById('shell-input');
-    const cmd = inp.value.trim();
-    if (!cmd || shellBusy || !shellWs) return;
-    shellHistory.unshift(cmd);
-    shellHistIdx = -1;
-    inp.value = '';
-    inp.disabled = true;
-    shellBusy = true;
-    shellWs.send(JSON.stringify({cmd}));
-  }
-  if (e.key === 'ArrowUp') {
-    if (shellHistIdx < shellHistory.length - 1) {
-      shellHistIdx++;
-      document.getElementById('shell-input').value = shellHistory[shellHistIdx] || '';
-    }
-    e.preventDefault();
-  }
-  if (e.key === 'ArrowDown') {
-    if (shellHistIdx > 0) { shellHistIdx--; document.getElementById('shell-input').value = shellHistory[shellHistIdx] || ''; }
-    else { shellHistIdx = -1; document.getElementById('shell-input').value = ''; }
-    e.preventDefault();
-  }
-}
+window.addEventListener('resize', () => { if (ptyTerm) ptyResize(); });
 
-// Focus input when clicking terminal area
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('shell-output')?.addEventListener('click', () => {
-    if (shellWs) document.getElementById('shell-input').focus();
-  });
-});
+function ptyKillSession() {
+  if (shellWs && shellWs.readyState === WebSocket.OPEN)
+    shellWs.send(JSON.stringify({t: 'kill'}));
+  if (ptyTerm) ptyTerm.write('\r\n\x1b[33m[Session killed — reconnecting...]\x1b[0m\r\n');
+  setTimeout(() => {
+    if (shellWs) { shellWs.close(); shellWs = null; }
+    if (ptyTerm) { ptyTerm.dispose(); ptyTerm = null; }
+    // Reconnect automatically with saved passwords
+    const p1 = document.getElementById('shell-p1').value || sessionStorage.getItem('_sp1') || '';
+    const p2 = document.getElementById('shell-p2').value || sessionStorage.getItem('_sp2') || '';
+    if (p1 && p2) { document.getElementById('shell-p1').value = p1; document.getElementById('shell-p2').value = p2; shellConnect(); }
+    else shellDisconnect();
+  }, 800);
+}
 </script>
 
 <!-- Password Modal -->

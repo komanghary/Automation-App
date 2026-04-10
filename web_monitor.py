@@ -143,7 +143,9 @@ async def status_all():
 
 
 @app.post("/api/process/{name}/start")
-async def api_start(name: str):
+async def api_start(name: str, x_monitor_password: str = Header(default="")):
+    if MONITOR_PASSWORD and x_monitor_password != MONITOR_PASSWORD:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
     if name not in PROCESSES:
         return JSONResponse({"error": "unknown"}, status_code=404)
     if _status[name] == "running":
@@ -358,6 +360,134 @@ async def ws_shell(websocket: WebSocket):
             except Exception as e:
                 await websocket.send_text(json.dumps({"t": "out", "d": f"[ERROR] {e}\n"}))
                 await websocket.send_text(json.dumps({"t": "done", "code": 1, "cwd": cwd}))
+
+    except (WebSocketDisconnect, asyncio.TimeoutError, json.JSONDecodeError):
+        pass
+    except Exception:
+        pass
+
+
+# ── Interactive PTY terminal (global persistent session) ──────────────────────
+
+import winpty as _winpty
+from collections import deque as _deque
+
+_PTY_ENV_EXTRAS = [
+    r"C:\Users\Administrator\AppData\Roaming\npm",
+    r"C:\Users\Administrator\.local\bin",
+    r"C:\Users\Administrator\.bun\bin",
+    r"C:\Program Files\nodejs",
+    r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\Scripts",
+    r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314",
+    r"C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Links",
+    r"C:\WINDOWS\system32",
+    r"C:\WINDOWS",
+]
+
+def _build_pty_env():
+    env = os.environ.copy()
+    cur = env.get("PATH", "")
+    extra = ";".join(p for p in _PTY_ENV_EXTRAS if p.lower() not in cur.lower())
+    env["PATH"] = extra + ";" + cur if extra else cur
+    return env
+
+# Global PTY state — survives browser tab close/reopen and reconnects
+_g_pty:    Optional[_winpty.PtyProcess] = None
+_g_pty_buf: _deque = _deque(maxlen=300)          # ring buffer of recent output chunks
+_g_pty_clients: Set[WebSocket] = set()
+_g_pty_reader_running: bool = False
+
+
+def _ensure_pty() -> _winpty.PtyProcess:
+    global _g_pty
+    if _g_pty is None or not _g_pty.isalive():
+        _g_pty = _winpty.PtyProcess.spawn(
+            "cmd.exe",
+            dimensions=(24, 220),
+            env=_build_pty_env(),
+            cwd=BASE_DIR,
+        )
+        _g_pty_buf.clear()
+    return _g_pty
+
+
+async def _pty_reader_loop():
+    """Single background task that reads PTY output and broadcasts to all clients."""
+    global _g_pty_reader_running
+    _g_pty_reader_running = True
+    loop = asyncio.get_event_loop()
+    try:
+        while True:
+            pty = _g_pty
+            if pty is None or not pty.isalive():
+                await asyncio.sleep(0.5)
+                continue
+            try:
+                chunk = await loop.run_in_executor(None, lambda: pty.read(4096))
+            except Exception:
+                await asyncio.sleep(0.2)
+                continue
+            if not chunk:
+                await asyncio.sleep(0.05)
+                continue
+            _g_pty_buf.append(chunk)
+            msg = json.dumps({"t": "data", "d": chunk})
+            dead: Set[WebSocket] = set()
+            for ws in list(_g_pty_clients):
+                try:
+                    await ws.send_text(msg)
+                except Exception:
+                    dead.add(ws)
+            _g_pty_clients -= dead
+    finally:
+        _g_pty_reader_running = False
+
+
+@app.websocket("/pty")
+async def ws_pty(websocket: WebSocket):
+    global _g_pty_reader_running
+    await websocket.accept()
+    try:
+        raw  = await asyncio.wait_for(websocket.receive_text(), timeout=15)
+        data = json.loads(raw)
+        if data.get("p1") != MONITOR_PASSWORD or data.get("p2") != SHELL_PASSWORD:
+            await websocket.send_text(json.dumps({"t": "auth", "ok": False, "msg": "Password salah"}))
+            await websocket.close()
+            return
+        await websocket.send_text(json.dumps({"t": "auth", "ok": True}))
+
+        # Ensure PTY exists and reader is running
+        _ensure_pty()
+        if not _g_pty_reader_running:
+            asyncio.create_task(_pty_reader_loop())
+            await asyncio.sleep(0.1)
+
+        # Replay buffered output so user sees recent history on reconnect
+        for chunk in list(_g_pty_buf):
+            try:
+                await websocket.send_text(json.dumps({"t": "data", "d": chunk}))
+            except Exception:
+                break
+
+        _g_pty_clients.add(websocket)
+        try:
+            while True:
+                raw = await websocket.receive_text()
+                msg = json.loads(raw)
+                if msg.get("t") == "input" and _g_pty and _g_pty.isalive():
+                    _g_pty.write(msg["d"])
+                elif msg.get("t") == "resize" and _g_pty and _g_pty.isalive():
+                    _g_pty.setwinsize(int(msg.get("rows", 24)), int(msg.get("cols", 220)))
+                elif msg.get("t") == "kill":
+                    # Explicit kill request from UI
+                    if _g_pty:
+                        try: _g_pty.terminate(force=True)
+                        except Exception: pass
+                    break
+        except (WebSocketDisconnect, Exception):
+            pass
+        finally:
+            _g_pty_clients.discard(websocket)
 
     except (WebSocketDisconnect, asyncio.TimeoutError, json.JSONDecodeError):
         pass
