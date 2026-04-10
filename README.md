@@ -1,143 +1,151 @@
 # Coroco House Bot
 
-Bot Discord otomatis untuk mengelola konten Instagram → watermark → YouTube upload, dilengkapi dengan scraper GitHub Trending.
+An automated Discord bot for managing Instagram content → watermark → YouTube upload, with a GitHub Trending scraper.
+
+> **Bahasa Indonesia:** Bot Discord otomatis untuk mengelola konten Instagram → watermark → YouTube upload, dilengkapi scraper GitHub Trending.
 
 ---
 
-## Daftar Isi
+## Table of Contents / Daftar Isi
 
-- [Struktur Folder](#struktur-folder)
-- [Komponen](#komponen)
-- [Persyaratan](#persyaratan)
-- [Instalasi](#instalasi)
-- [Konfigurasi `.env`](#konfigurasi-env)
-- [Menjalankan Bot](#menjalankan-bot)
-- [Cara Kerja](#cara-kerja)
-- [Perintah Discord](#perintah-discord)
+- [Project Structure](#project-structure)
+- [Components](#components)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Environment Configuration](#environment-configuration)
+- [Running the Bots](#running-the-bots)
+- [How It Works](#how-it-works)
+- [Notes](#notes)
 
 ---
 
-## Struktur Folder
+## Project Structure
 
 ```
 Coroco-House/
-├── bot.py                  # Entry point bot utama
-├── processor.py            # Watermark dengan teks (PIL)
-├── processor_overlay.py    # Watermark overlay (FFmpeg)
+├── bot.py                  # Main bot entry point
+├── processor.py            # Text watermark renderer (PIL)
+├── processor_overlay.py    # Video overlay watermark (FFmpeg)
 ├── requirements.txt
-├── .env.example            # Template konfigurasi
+├── .env.example            # Environment template
 │
 ├── config/
-│   └── settings.py         # Semua env vars & konstanta
+│   └── settings.py         # All env vars & constants
 │
 ├── core/
 │   ├── watcher.py          # Instagram polling loop
-│   └── dashboard.py        # Dashboard embed Discord
+│   └── dashboard.py        # Discord dashboard embed updater
 │
 ├── services/
-│   ├── instagram.py        # Login & download video IG
-│   ├── youtube.py          # Upload & jadwal YouTube
-│   ├── gemini.py           # Generate judul/deskripsi AI
-│   └── discord_views.py    # UI tombol Discord
+│   ├── instagram.py        # IG login & video download
+│   ├── youtube.py          # YouTube upload & scheduling
+│   ├── gemini.py           # AI title/description generation
+│   └── discord_views.py    # Discord UI buttons & views
 │
 └── scrapers/
-    └── trending_scraper.py  # GitHub Trending scraper
+    └── trending_scraper.py  # GitHub Trending scraper bot
 ```
 
 ---
 
-## Komponen
+## Components
 
-### 1. Bot Utama (`bot.py`)
-- Menonton grup Instagram untuk video baru (polling setiap 30 detik)
-- Menambahkan watermark ke video (4 channel: Wutering, Film, Motivational, Bola Geming)
-- Upload ke YouTube dengan jadwal otomatis (09:00 & 21:00 WITA)
-- Generate judul & deskripsi menggunakan Gemini AI
-- Dashboard real-time di Discord
+### 1. Main Bot (`bot.py`)
+- Monitors Instagram group chats for new videos (polls every 30 seconds)
+- Adds watermarks to videos across 4 channels: Wutering, Film, Motivational, Bola Geming
+- Uploads to YouTube with automatic scheduling (09:00 & 21:00 WITA)
+- Generates titles & descriptions using Gemini AI
+- Real-time dashboard in Discord
+
+> **ID:** Bot utama untuk monitoring Instagram, watermark, dan upload YouTube otomatis dengan jadwal.
 
 ### 2. GitHub Trending Scraper (`scrapers/trending_scraper.py`)
-- Scraping GitHub Trending setiap jam 08:00 WITA
-- Daily & Weekly trending repos
-- Ringkasan deskripsi AI (Gemini) dalam bahasa Indonesia
-- Rating kepentingan 1–10 + alasan "kenapa harus tahu"
-- Output: Excel dengan warna rating
+- Scrapes GitHub Trending every day at 08:00 WITA
+- Covers Daily & Weekly trending repositories
+- AI-powered description summaries in plain Indonesian (Gemini)
+- Importance rating 1–10 with reasoning
+- Output: Color-coded Excel file sent to Discord
+
+> **ID:** Scraper trending GitHub harian dengan ringkasan AI dan rating kepentingan.
 
 ---
 
-## Persyaratan
+## Requirements
 
 - Python 3.10+
-- FFmpeg (install via `winget install ffmpeg`)
-- Font: `fonts/ProximaNova-Regular.ttf` dan `fonts/ProximaNova-Bold.ttf`
-- Watermark assets di folder `watermarks/`:
-  - `watermark.png` (Wutering)
-  - `Coroco.png` (Film)
-  - `Absolutegrowt.mp4` (Motivational)
-  - `ONGOAL_WM_VIDEO.mp4` (Bola Geming)
+- FFmpeg — install via `winget install ffmpeg`
+- Fonts in `fonts/` folder:
+  - `ProximaNova-Regular.ttf`
+  - `ProximaNova-Bold.ttf`
+- Watermark assets in `watermarks/` folder:
+  - `watermark.png` — Wutering channel
+  - `Coroco.png` — Film channel
+  - `Absolutegrowt.mp4` — Motivational channel
+  - `ONGOAL_WM_VIDEO.mp4` — Bola Geming channel
 
 ---
 
-## Instalasi
+## Installation
 
 ```bash
-# 1. Clone repo
+# 1. Clone the repository
 git clone https://github.com/komanghary/Coroco-House.git
 cd Coroco-House
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Salin template env
+# 3. Copy environment template
 copy .env.example .env
-# Edit .env dengan kredensial kamu
+# Fill in your credentials in .env
 
-# 4. Siapkan YouTube OAuth
-# Taruh file client_secret*.json dari Google Cloud Console
+# 4. Add YouTube OAuth files
+# Place client_secret*.json files from Google Cloud Console in the project root
 ```
 
 ---
 
-## Konfigurasi `.env`
+## Environment Configuration
 
-Salin `.env.example` menjadi `.env` lalu isi:
+Copy `.env.example` to `.env` and fill in your values:
 
 ```env
-# Discord
-DISCORD_TOKEN=           # Token bot Discord
+# ── Discord ──────────────────────────────────────────────
+DISCORD_TOKEN=           # Discord bot token
 
-# Instagram
-IG_USERNAME=             # Email/username Instagram
-IG_PASSWORD=             # Password Instagram
-POLL_INTERVAL=30         # Interval polling (detik)
+# ── Instagram ────────────────────────────────────────────
+IG_USERNAME=             # Instagram email/username
+IG_PASSWORD=             # Instagram password
+POLL_INTERVAL=30         # Polling interval in seconds
 
-# Channel Discord
-WATCHER_CHANNEL_ID=      # Channel fallback watcher
-WATERMARK_CHANNEL_ID=    # Channel upload manual watermark
-DASHBOARD_CHANNEL_ID=    # Channel dashboard
-COPYRIGHT_CHANNEL_ID=    # Channel notifikasi copyright
-BOLA_GEMING_CHANNEL_ID=  # Channel Bola Geming
+# ── Discord Channels ─────────────────────────────────────
+WATCHER_CHANNEL_ID=      # Fallback watcher channel
+WATERMARK_CHANNEL_ID=    # Manual watermark upload channel
+DASHBOARD_CHANNEL_ID=    # Dashboard channel
+COPYRIGHT_CHANNEL_ID=    # Copyright alert channel
+BOLA_GEMING_CHANNEL_ID=  # Bola Geming channel
 
-# Watchlist: nama_grup_ig=channel_discord_id
+# ── Watchlist: ig_group_name=discord_channel_id ──────────
 WATCHLIST=Wutering with me=...,Film=...,Motivational=...,Bola Geming=...
 
-# Watermark
-WATERMARK_USERNAME=@handle
+# ── Watermark ────────────────────────────────────────────
+WATERMARK_USERNAME=@yourhandle
 
-# YouTube (per channel)
+# ── YouTube (one client_secret per channel) ──────────────
 YT_CLIENT_SECRET=client_secret.json
 YT_FILM_CLIENT_SECRET=client_secret_film.json
 YT_MOTIVATIONAL_CLIENT_SECRET=client_secret_motivational.json
 YT_BOLA_GEMING_CLIENT_SECRET=client_secret_bola_geming.json
 
-# Gemini AI (pisah koma untuk rotasi)
+# ── Gemini AI (comma-separated keys for rotation) ────────
 GEMINI_API_KEYS=key1,key2,key3,...
 ```
 
 ---
 
-## Menjalankan Bot
+## Running the Bots
 
-### Bot Utama
+### Main Bot
 ```bash
 cd Coroco-House
 python bot.py
@@ -149,45 +157,46 @@ cd Coroco-House/scrapers
 python trending_scraper.py
 ```
 
-> Keduanya bisa dijalankan bersamaan secara terpisah.
+> Both can run simultaneously as separate processes.
+>
+> **ID:** Keduanya bisa dijalankan bersamaan sebagai proses terpisah.
 
 ---
 
-## Cara Kerja
+## How It Works
 
 ```
-Instagram Grup
-      ↓ (video baru terdeteksi)
+Instagram Group Chat
+        ↓  (new video detected)
 Download HD + Preview
-      ↓
-Kirim ke Discord (dengan tombol Accept/Cancel)
-      ↓ (klik Accept)
+        ↓
+Send to Discord  [Accept] [Cancel]
+        ↓  (Accept clicked)
 FFmpeg watermark processing
-      ↓
-Gemini AI generate judul & deskripsi
-      ↓
-Tampil preview + tombol Upload ke YouTube
-      ↓ (klik Upload)
-Upload ke YouTube dengan jadwal otomatis
-      ↓
-Dashboard Discord terupdate
+        ↓
+Gemini AI generates title & description
+        ↓
+Preview sent to Discord  [Upload to YouTube] [Cancel]
+        ↓  (Upload clicked)
+YouTube upload with automatic scheduling
+        ↓
+Discord dashboard updated
 ```
 
-### Jadwal Upload YouTube
-Upload dijadwalkan dua kali sehari: **09:00** dan **21:00 WITA**, bergantian per video.
+### YouTube Upload Schedule
+Videos are scheduled twice daily: **09:00** and **21:00 WITA**, alternating per video uploaded.
 
 ---
 
-## Perintah Discord
+## Notes
 
-Upload video manual (kirim video ke `WATERMARK_CHANNEL_ID`):
-- Sertakan judul video di pesan
-- Bot otomatis proses watermark dan tanya konfirmasi upload YouTube
+- **First YouTube upload per channel** — a browser window will open for OAuth login. This only happens once; the token is saved to `data/youtube_token_*.json`.
+- **YouTube quota exceeded** — videos are automatically queued and uploaded when quota resets (~16:00 WITA daily).
+- **Cloudflare WARP** — recommended if the server has connectivity issues with Google APIs. Install via `winget install Cloudflare.Warp`.
+- **Secrets** — never commit `.env` or `client_secret*.json` files. They are already listed in `.gitignore`.
 
----
-
-## Catatan
-
-- Pertama kali upload YouTube per channel → browser akan meminta OAuth login
-- Token tersimpan di `data/youtube_token_*.json` (tidak perlu login ulang)
-- Jika quota YouTube habis → video masuk antrian otomatis, upload saat quota reset (~16:00 WITA)
+> **ID:**
+> - Login OAuth YouTube hanya sekali per channel, token disimpan otomatis.
+> - Jika quota habis, video masuk antrian dan upload otomatis saat reset.
+> - Pasang Cloudflare WARP jika server tidak bisa koneksi ke Google API.
+> - Jangan commit file `.env` dan `client_secret*.json`.
