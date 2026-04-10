@@ -10,3 +10,5 @@ google-auth-oauthlib
 google-auth-httplib2
 openpyxl
 beautifulsoup4
+fastapi
+uvicorn[standard]

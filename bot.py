@@ -54,7 +54,7 @@ import discord
 from config import (
     DISCORD_TOKEN, IG_USERNAME,
     WATCHER_CHANNEL_ID, WATERMARK_CHANNEL_ID, WATERMARK_PATH, WM_USERNAME,
-    DASHBOARD_CHANNEL_ID, DASHBOARD_INTERVAL,
+    DASHBOARD_CHANNEL_ID,
     GEMINI_API_KEYS, YT_CLIENT_SECRET, POLL_INTERVAL, WATCHLIST,
     VIDEO_EXTENSIONS, MAX_FILE_MB, DISCORD_UPLOAD_LIMIT, TEMP_DIR,
 )
@@ -64,8 +64,10 @@ from services.youtube import (
     load_upload_queue, save_upload_queue,
     upload_to_youtube, get_next_schedule_time, add_to_history, is_quota_exceeded,
 )
-from core import watcher, dashboard
+from core import watcher
 from processor import process_video
+
+WATCHER_QUEUE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "watcher_queue.json")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -79,7 +81,6 @@ bot = discord.Client(intents=intents)
 # Inject bot instance into modules
 discord_views.init(bot)
 watcher.init(bot)
-dashboard.init(bot)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -157,6 +158,57 @@ async def upload_queue_loop():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  WATCHER QUEUE READER
+# ══════════════════════════════════════════════════════════════════════════════
+
+async def queue_reader_loop():
+    """
+    Background loop — reads videos queued by watcher_worker.py every 10 seconds
+    and sends them to Discord with the appropriate watermark view.
+    """
+    import asyncio as _asyncio
+    import json as _json
+    await bot.wait_until_ready()
+    await _asyncio.sleep(5)
+
+    while not bot.is_closed():
+        try:
+            if os.path.exists(WATCHER_QUEUE_FILE):
+                with open(WATCHER_QUEUE_FILE, 'r') as f:
+                    queue = _json.load(f)
+
+                if queue:
+                    remaining = []
+                    for item in queue:
+                        hd_path = item.get("hd_path", "")
+                        preview_path = item.get("preview_path", "")
+                        channel_id = item.get("channel_id")
+                        group_name = item.get("group_name", "?")
+
+                        if not hd_path or not os.path.exists(hd_path):
+                            print(f"[QueueReader] File tidak ada, skip: {hd_path}")
+                            continue
+                        if not preview_path or not os.path.exists(preview_path):
+                            print(f"[QueueReader] Preview tidak ada, skip: {preview_path}")
+                            continue
+
+                        try:
+                            await watcher.send_to_discord(hd_path, preview_path, channel_id)
+                            print(f"[QueueReader] Dikirim ke Discord: {group_name}")
+                        except Exception as e:
+                            print(f"[QueueReader] Gagal kirim ke Discord ({group_name}): {e}")
+                            remaining.append(item)
+
+                    with open(WATCHER_QUEUE_FILE, 'w') as f:
+                        _json.dump(remaining, f, indent=2)
+
+        except Exception as e:
+            print(f"[QueueReader] Error: {e}")
+
+        await _asyncio.sleep(10)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  EVENTS
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -177,8 +229,7 @@ async def on_ready():
     # Restore persistent views (watermark buttons survive restart)
     restore_persistent_views()
 
-    bot.loop.create_task(watcher.ig_watcher_loop())
-    bot.loop.create_task(dashboard.dashboard_loop())
+    bot.loop.create_task(queue_reader_loop())
     bot.loop.create_task(upload_queue_loop())
 
 
@@ -297,10 +348,9 @@ def main():
         print(f"[Config] Gemini API     : {len(GEMINI_API_KEYS)} keys (2.5 Flash)")
     else:
         print(f"[Config] Gemini API     : (kosong)")
-    print(f"[Config] Dashboard Ch   : {DASHBOARD_CHANNEL_ID or '(kosong)'}")
     print(f"[Config] YouTube        : {'Ready' if os.path.exists(YT_CLIENT_SECRET) else '(no client_secret.json)'}")
-    print(f"[Config] Dashboard      : update setiap {DASHBOARD_INTERVAL}s")
     print(f"[Config] Poll Interval  : {POLL_INTERVAL}s")
+    print(f"[Config] Queue Reader   : polling setiap 10s dari watcher_worker.py")
     if WATCHLIST:
         print(f"[Config] Watchlist      : {len(WATCHLIST)} grup")
         for name, ch in WATCHLIST.items():

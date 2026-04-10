@@ -303,7 +303,7 @@ async def update_dashboard():
                 for i, (msg, embed) in enumerate(zip(existing_msgs, embeds)):
                     await msg.edit(embed=embed)
                     if i < len(embeds) - 1:
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(5)
                 print(f"[Dashboard] Updated ({datetime.now(WITA).strftime('%H:%M:%S')})")
                 return
             else:

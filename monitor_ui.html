@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Coroco House</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #f1f5f9;
+  --surface:  #ffffff;
+  --border:   #e2e8f0;
+  --border2:  #cbd5e1;
+  --accent:   #3b82f6;
+  --accent2:  #6366f1;
+  --accent3:  #0ea5e9;
+  --txt:      #0f172a;
+  --txt2:     #475569;
+  --txt3:     #94a3b8;
+  --running:  #10b981;
+  --stopped:  #64748b;
+  --starting: #f59e0b;
+  --stopping: #ef4444;
+  --term-bg:  #0f172a;
+  --term-txt: #94a3b8;
+  --glow-b:   rgba(59,130,246,0.15);
+  --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+body.dark {
+  --bg:       #0f172a;
+  --surface:  #1e293b;
+  --border:   #334155;
+  --border2:  #475569;
+  --txt:      #f1f5f9;
+  --txt2:     #cbd5e1;
+  --txt3:     #64748b;
+  --shadow:   0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2);
+  --glow-b:   rgba(59,130,246,0.2);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body {
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--bg); color:var(--txt);
+  height:100vh; display:flex; flex-direction:column; overflow:hidden;
+  font-size:13px;
+}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── Header ──────────────────────────────────────────────── */
+.hdr {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex; align-items:center; gap:0;
+  height:52px; flex-shrink:0;
+  box-shadow:var(--shadow);
+}
+.hdr-logo {
+  display:flex; align-items:center; gap:10px;
+  margin-right:32px; flex-shrink:0;
+}
+.logo-dot {
+  width:28px; height:28px; border-radius:8px;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; flex-shrink:0;
+  box-shadow:0 2px 8px rgba(99,102,241,0.3);
+}
+.hdr-title {
+  font-size:15px; font-weight:700; color:var(--txt);
+  letter-spacing:-0.3px;
+}
+.hdr-sub { font-size:11px; color:var(--txt3); margin-top:1px; }
+
+/* Nav pills */
+.nav-tabs { display:flex; gap:2px; flex:1; }
+.ntab {
+  padding:6px 16px; border-radius:6px; cursor:pointer;
+  font-size:12px; font-weight:500; color:var(--txt2);
+  transition:all .15s; user-select:none;
+  border:none; background:none;
+}
+.ntab:hover { background:var(--bg); color:var(--txt); }
+.ntab.active {
+  background:var(--accent); color:#fff;
+  box-shadow:0 2px 8px rgba(59,130,246,0.3);
+}
+
+/* Status chips in header */
+.hdr-chips { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.chip {
+  display:flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:20px;
+  font-size:11px; font-weight:500;
+  background:var(--bg); border:1px solid var(--border);
+}
+.chip .cdot {
+  width:6px; height:6px; border-radius:50%; flex-shrink:0;
+}
+.chip.run .cdot { background:var(--running); box-shadow:0 0 6px var(--running); }
+.chip.stp .cdot { background:var(--stopped); }
+.hdr-time {
+  font-size:11px; color:var(--txt3); font-weight:500;
+  margin-left:16px; padding-left:16px;
+  border-left:1px solid var(--border);
+  white-space:nowrap;
+}
+.dark-toggle {
+  margin-left:10px; padding:5px 10px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--border2); background:var(--surface);
+  font-size:14px; transition:all .15s; flex-shrink:0;
+}
+.dark-toggle:hover { background:var(--bg); border-color:var(--accent); }
+
+/* ── Stats bar ───────────────────────────────────────────── */
+.stats-bar {
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex; align-items:center; gap:0;
+  height:44px; flex-shrink:0;
+}
+.sb-item {
+  display:flex; align-items:center; gap:8px;
+  padding:0 20px; border-right:1px solid var(--border);
+  height:100%;
+}
+.sb-item:first-child { padding-left:0; }
+.sb-val { font-size:18px; font-weight:700; color:var(--txt); line-height:1; }
+.sb-val.green { color:var(--running); }
+.sb-val.blue  { color:var(--accent); }
+.sb-lbl { font-size:11px; color:var(--txt3); line-height:1; }
+
+/* ── Main layout ─────────────────────────────────────────── */
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.panel { display:none; flex:1; overflow-y:auto; padding:20px 24px; }
+.panel.active { display:block; }
+.panel-procs.active {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:16px;
+}
+
+/* ── Process cards ───────────────────────────────────────── */
+.proc-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--shadow-md);
+  display:flex; flex-direction:column; overflow:hidden; min-height:0;
+  transition:border-color .2s, box-shadow .2s;
+}
+.proc-card:hover {
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--glow-b), var(--shadow-md);
+}
+
+.pcard-head {
+  padding:12px 16px;
+  display:flex; align-items:center; gap:10px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0; background:var(--surface);
+}
+
+/* Status indicator dot */
+.pdot {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  background:var(--stopped); transition:all .3s;
+}
+.pdot.running  { background:var(--running); box-shadow:0 0 0 3px rgba(16,185,129,0.2); animation:glow-g 2s infinite; }
+.pdot.stopped  { background:var(--border2); }
+.pdot.starting { background:var(--starting); box-shadow:0 0 0 3px rgba(245,158,11,0.2); animation:pulse .8s infinite; }
+.pdot.stopping { background:var(--stopping); }
+@keyframes glow-g { 0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,0.2)} 50%{box-shadow:0 0 0 5px rgba(16,185,129,0.1)} }
+@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.pcard-name {
+  font-size:13px; font-weight:600; color:var(--txt); flex:1;
+  letter-spacing:-0.2px;
+}
+.pcard-desc { font-size:11px; color:var(--txt3); }
+
+.pcard-badge {
+  font-size:10px; font-weight:600; padding:3px 8px;
+  border-radius:20px; letter-spacing:.3px;
+}
+.pcard-badge.running  { background:#dcfce7; color:#15803d; }
+.pcard-badge.stopped  { background:#f1f5f9; color:#64748b; }
+.pcard-badge.starting { background:#fef9c3; color:#a16207; }
+.pcard-badge.stopping { background:#fee2e2; color:#dc2626; }
+
+/* Buttons row */
+.pcard-btns {
+  padding:8px 16px;
+  display:flex; align-items:center; gap:6px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0; background:var(--bg);
+}
+.pbtn {
+  font-family:'Inter',sans-serif; font-size:11px; font-weight:600;
+  padding:5px 12px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--border2); background:var(--surface);
+  color:var(--txt2); transition:all .12s; letter-spacing:.2px;
+}
+.pbtn:disabled { opacity:.4; cursor:not-allowed; }
+.pbtn-start { border-color:#86efac; color:#15803d; background:#f0fdf4; }
+.pbtn-start:hover:not(:disabled) { background:#dcfce7; border-color:#4ade80; }
+.pbtn-stop  { border-color:#fca5a5; color:#dc2626; background:#fef2f2; }
+.pbtn-stop:hover:not(:disabled)  { background:#fee2e2; border-color:#f87171; }
+.pbtn-restart { background:var(--surface); border-color:var(--border2); color:var(--txt2); font-size:14px; padding:4px 10px; }
+.pbtn-restart:hover:not(:disabled) { background:var(--bg); border-color:var(--accent); color:var(--accent); }
+
+/* Terminal */
+.pcard-log {
+  flex:1; background:var(--term-bg);
+  font-family:'JetBrains Mono','Courier New',monospace;
+  font-size:11px; line-height:1.6; overflow-y:auto;
+  padding:10px 14px; min-height:80px;
+}
+.ll       { color:var(--term-txt); white-space:pre-wrap; word-break:break-all; }
+.ll.err   { color:#f87171; }
+.ll.wrn   { color:#fbbf24; }
+.ll.sep   { color:#6366f1; opacity:.9; }
+.ll.inf   { color:#34d399; }
+
+/* ── YouTube / Scraper panels ────────────────────────────── */
+.panel-hd {
+  font-size:18px; font-weight:700; color:var(--txt);
+  letter-spacing:-0.4px; margin-bottom:16px;
+  display:flex; align-items:center; gap:10px;
+}
+.panel-hd::after {
+  content:''; flex:1; height:1px; background:var(--border);
+}
+
+.kpi-row { display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.kpi {
+  flex:1; min-width:110px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:14px 18px;
+  box-shadow:var(--shadow);
+}
+.kpi-val { font-size:24px; font-weight:700; color:var(--txt); line-height:1; }
+.kpi-lbl { font-size:11px; color:var(--txt3); margin-top:4px; letter-spacing:.3px; }
+.kpi-val.blue  { color:var(--accent); }
+.kpi-val.green { color:var(--running); }
+
+.sect-hd {
+  font-size:12px; font-weight:600; color:var(--txt2);
+  letter-spacing:.5px; text-transform:uppercase;
+  margin:20px 0 10px; padding-bottom:6px;
+  border-bottom:2px solid var(--border);
+}
+
+.tbl-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:8px; margin-bottom:16px; }
+table { width:100%; border-collapse:collapse; background:var(--surface); }
+thead th {
+  background:var(--bg); color:var(--txt2);
+  font-size:11px; font-weight:600; letter-spacing:.5px; text-transform:uppercase;
+  padding:8px 12px; text-align:left; border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+tbody tr { border-bottom:1px solid var(--border); }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--bg); }
+tbody td { padding:8px 12px; font-size:12px; color:var(--txt); }
+table { background:var(--surface); }
+.row-count { font-size:11px; color:var(--txt3); text-align:right; margin-top:6px; }
+
+.pill { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:500; }
+.pill-green { background:#dcfce7; color:#15803d; }
+.pill-blue  { background:#dbeafe; color:#1d4ed8; }
+.yt-link { color:var(--accent); text-decoration:none; font-weight:600; font-size:11px; }
+.yt-link:hover { text-decoration:underline; }
+
+/* Scraper */
+.scraper-bar {
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+}
+.scraper-bar label { font-size:12px; color:var(--txt2); font-weight:500; white-space:nowrap; }
+.file-select {
+  flex:1; font-family:'Inter',sans-serif; font-size:12px;
+  background:var(--surface); color:var(--txt);
+  border:1px solid var(--border2); border-radius:6px; padding:6px 10px;
+  outline:none;
+}
+.file-select:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--glow-b); }
+.sheet-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px; }
+.stab {
+  font-size:11px; font-weight:600; padding:5px 12px; border-radius:6px;
+  cursor:pointer; background:var(--surface); border:1px solid var(--border2);
+  color:var(--txt2); transition:all .12s; letter-spacing:.2px;
+}
+.stab:hover { background:var(--bg); border-color:var(--accent); color:var(--accent); }
+.stab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+/* ── Channel dashboard cards ─────────────────────────────── */
+.ch-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+  margin-bottom:20px;
+}
+@media(max-width:1100px){ .ch-grid{ grid-template-columns:repeat(2,1fr); } }
+.ch-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden;
+  box-shadow:var(--shadow-md); transition:border-color .2s;
+}
+.ch-card:hover { border-color:var(--accent); }
+.ch-card-head {
+  padding:10px 14px 8px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:8px;
+}
+.ch-emoji { font-size:18px; flex-shrink:0; }
+.ch-name  { font-size:13px; font-weight:700; color:var(--txt); flex:1; }
+.ch-count { font-size:11px; color:var(--txt3); }
+.ch-card-body { padding:10px 14px 12px; }
+.ch-stat-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:3px 0; border-bottom:1px solid var(--border);
+}
+.ch-stat-row:last-child { border-bottom:none; }
+.ch-stat-lbl { font-size:11px; color:var(--txt3); }
+.ch-stat-val { font-size:12px; font-weight:600; color:var(--txt); }
+.ch-stat-val.green { color:var(--running); }
+.ch-stat-val.blue  { color:var(--accent); }
+.ch-stat-val.orange { color:#f59e0b; }
+.ch-upcoming {
+  margin-top:8px; padding:6px 8px;
+  background:var(--bg); border-radius:6px;
+  border:1px solid var(--border);
+}
+.ch-upcoming-title { font-size:10px; font-weight:600; color:var(--txt3); letter-spacing:.5px; text-transform:uppercase; margin-bottom:4px; }
+.ch-upcoming-item  { font-size:11px; color:var(--txt2); padding:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ch-upcoming-item span { color:var(--accent); font-weight:600; margin-right:4px; }
+
+.empty {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:60px 20px; gap:8px;
+  color:var(--txt3);
+}
+.empty svg { opacity:.4; margin-bottom:8px; }
+.empty h3 { font-size:14px; font-weight:600; color:var(--txt2); }
+.empty p  { font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <div class="logo-dot">⚡</div>
+    <div>
+      <div class="hdr-title">Coroco House</div>
+      <div class="hdr-sub">Bot Monitor</div>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="ntab active" data-panel="procs"   onclick="switchTab(this)">Processes</button>
+    <button class="ntab"        data-panel="youtube" onclick="switchTab(this)">YouTube</button>
+    <button class="ntab"        data-panel="scraper" onclick="switchTab(this)">Scraper</button>
+  </div>
+
+  <div class="hdr-chips">
+    <div class="chip run"><div class="cdot"></div><span id="chip-run">0 running</span></div>
+    <div class="chip stp"><div class="cdot"></div><span id="chip-stp">4 stopped</span></div>
+  </div>
+  <div class="hdr-time" id="hdr-time"></div>
+  <button class="dark-toggle" id="dark-toggle" onclick="toggleDark()" title="Toggle dark mode">☀️</button>
+</div>
+
+<!-- ── Stats bar ─────────────────────────────────────────── -->
+<div class="stats-bar" id="stats-bar">
+  <div class="sb-item">
+    <div>
+      <div class="sb-val green" id="sb-running">0</div>
+      <div class="sb-lbl">Running</div>
+    </div>
+  </div>
+  <div class="sb-item">
+    <div>
+      <div class="sb-val" id="sb-stopped">4</div>
+      <div class="sb-lbl">Stopped</div>
+    </div>
+  </div>
+  <div class="sb-item">
+    <div>
+      <div class="sb-val blue">4</div>
+      <div class="sb-lbl">Total Bots</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Processes -->
+  <div class="panel panel-procs active" id="panel-procs">
+    <!-- built by JS -->
+  </div>
+
+  <!-- YouTube -->
+  <div class="panel" id="panel-youtube">
+    <div class="panel-hd">YouTube Archive</div>
+    <div id="yt-content">
+      <div class="empty">
+        <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.069A1 1 0 0121 8.868v6.264a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+        <h3>Click tab YouTube to load data</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scraper -->
+  <div class="panel" id="panel-scraper">
+    <div class="panel-hd">Scraper Reports</div>
+    <div class="scraper-bar">
+      <label>File:</label>
+      <select class="file-select" id="sel-file" onchange="onFileChange()">
+        <option value="">-- select report --</option>
+      </select>
+    </div>
+    <div class="sheet-tabs" id="sheet-tabs"></div>
+    <div id="sheet-body">
+      <div class="empty">
+        <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <h3>Click tab Scraper to load reports</h3>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const PROC_TITLES = {
+  bot:       "Discord Bot",
+  watcher:   "Instagram Watcher",
+  dashboard: "Dashboard Worker",
+  trending:  "Trending Scraper",
+};
+const PROC_LABELS = {
+  bot:       "Discord + YouTube upload",
+  watcher:   "Instagram polling loop",
+  dashboard: "Dashboard embed updater",
+  trending:  "Multi-platform trending",
+};
+const PROCS = Object.keys(PROC_LABELS);
+const STATUS_TEXT = {
+  running:'Running', stopped:'Stopped',
+  starting:'Starting...', stopping:'Stopping...', restarting:'Restarting...',
+};
+const autoScroll = {};
+const wsMap = {};
+
+// ── Build cards ───────────────────────────────────────────
+function buildCards() {
+  const grid = document.getElementById('panel-procs');
+  for (const name of PROCS) {
+    autoScroll[name] = true;
+    const card = document.createElement('div');
+    card.className = 'proc-card';
+    card.id = `card-${name}`;
+    card.innerHTML = `
+      <div class="pcard-head">
+        <div class="pdot stopped" id="dot-${name}"></div>
+        <div>
+          <div class="pcard-name">${PROC_TITLES[name]}</div>
+          <div class="pcard-desc">${PROC_LABELS[name]}</div>
+        </div>
+        <div class="pcard-badge stopped" id="badge-${name}">Stopped</div>
+      </div>
+      <div class="pcard-btns">
+        <button class="pbtn pbtn-start"   id="bs-${name}" onclick="apiProc('${name}','start')">▶ Start</button>
+        <button class="pbtn pbtn-stop"    id="bx-${name}" onclick="apiProc('${name}','stop')" disabled>■ Stop</button>
+        <button class="pbtn pbtn-restart" id="br-${name}" onclick="apiProc('${name}','restart')" title="Restart">↻</button>
+      </div>
+      <div class="pcard-log" id="log-${name}" onscroll="onScroll('${name}')"></div>`;
+    grid.appendChild(card);
+  }
+}
+
+function onScroll(name) {
+  const el = document.getElementById(`log-${name}`);
+  autoScroll[name] = (el.scrollHeight - el.scrollTop - el.clientHeight) < 50;
+}
+
+function appendLog(name, text) {
+  const el = document.getElementById(`log-${name}`);
+  if (!el) return;
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    const d = document.createElement('div');
+    d.className = 'll';
+    if (/error|gagal|exception|traceback|critical/i.test(line)) d.classList.add('err');
+    else if (/warn|peringatan/i.test(line)) d.classList.add('wrn');
+    else if (/^\[\d{2}:\d{2}:\d{2}\] ---/.test(line)) d.classList.add('sep');
+    else if (/^\[\d{2}:\d{2}:\d{2}\] \[/.test(line)) d.classList.add('inf');
+    d.textContent = line;
+    el.appendChild(d);
+  }
+  while (el.children.length > 700) el.removeChild(el.firstChild);
+  if (autoScroll[name]) el.scrollTop = el.scrollHeight;
+}
+
+function connectWS(name) {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/${name}`);
+  ws.onmessage = e => appendLog(name, e.data);
+  ws.onclose   = () => setTimeout(() => connectWS(name), 4000);
+  ws.onerror   = () => ws.close();
+  wsMap[name]  = ws;
+}
+
+// ── Password Modal ────────────────────────────────────────
+let _pwdResolve = null;
+function showPwdModal(title) {
+  document.getElementById('pwd-modal-title').textContent = title;
+  document.getElementById('pwd-input').value = '';
+  document.getElementById('pwd-error').textContent = '';
+  document.getElementById('pwd-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('pwd-input').focus(), 50);
+  return new Promise(res => { _pwdResolve = res; });
+}
+function pwdModalSubmit() {
+  const val = document.getElementById('pwd-input').value;
+  document.getElementById('pwd-modal').style.display = 'none';
+  if (_pwdResolve) { _pwdResolve(val); _pwdResolve = null; }
+}
+function pwdModalCancel() {
+  document.getElementById('pwd-modal').style.display = 'none';
+  if (_pwdResolve) { _pwdResolve(null); _pwdResolve = null; }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') pwdModalCancel();
+  if (e.key === 'Enter' && document.getElementById('pwd-modal').style.display === 'flex') pwdModalSubmit();
+});
+
+// ── Control ───────────────────────────────────────────────
+async function apiProc(name, action) {
+  let password = null;
+  if (action === 'stop' || action === 'restart') {
+    const label = action === 'stop' ? `Stop ${PROC_TITLES[name]}` : `Restart ${PROC_TITLES[name]}`;
+    password = await showPwdModal(label);
+    if (password === null) return; // cancelled
+  }
+  const headers = { 'Content-Type': 'application/json' };
+  if (password !== null) headers['X-Monitor-Password'] = password;
+  const res = await fetch(`/api/process/${name}/${action}`, { method: 'POST', headers });
+  if (res.status === 401) {
+    document.getElementById('pwd-modal').style.display = 'flex';
+    document.getElementById('pwd-error').textContent = '❌ Password salah';
+    return;
+  }
+}
+
+function applyStatus(name, status) {
+  const dot   = document.getElementById(`dot-${name}`);
+  const badge = document.getElementById(`badge-${name}`);
+  const bs    = document.getElementById(`bs-${name}`);
+  const bx    = document.getElementById(`bx-${name}`);
+  if (!dot) return;
+  dot.className   = `pdot ${status}`;
+  if (badge) { badge.className = `pcard-badge ${status}`; badge.textContent = STATUS_TEXT[status] || status; }
+  if (bs) bs.disabled = status === 'running';
+  if (bx) bx.disabled = status !== 'running';
+}
+
+async function pollStatus() {
+  try {
+    const data = await (await fetch('/api/status/all')).json();
+    let running = 0, stopped = 0;
+    for (const [name, info] of Object.entries(data)) {
+      applyStatus(name, info.status);
+      if (info.status === 'running') running++;
+      else stopped++;
+    }
+    document.getElementById('sb-running').textContent = running;
+    document.getElementById('sb-stopped').textContent = stopped;
+    document.getElementById('chip-run').textContent = `${running} running`;
+    document.getElementById('chip-stp').textContent = `${stopped} stopped`;
+  } catch {}
+}
+
+// ── Clock ─────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('hdr-time').textContent =
+    new Date().toLocaleString('id-ID',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Tabs ──────────────────────────────────────────────────
+function switchTab(el) {
+  document.querySelectorAll('.ntab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
+  el.classList.add('active');
+  const panelId = `panel-${el.dataset.panel}`;
+  const panel = document.getElementById(panelId);
+  if (panel) {
+    panel.classList.add('active');
+    if (el.dataset.panel !== 'procs') panel.style.display = 'block';
+  }
+  if (el.dataset.panel === 'youtube') loadYoutube();
+  if (el.dataset.panel === 'scraper') loadFileList();
+}
+
+// ── YouTube ───────────────────────────────────────────────
+async function loadYoutube() {
+  const c = document.getElementById('yt-content');
+  c.innerHTML = '<div class="empty"><h3>Loading...</h3></div>';
+  try {
+    const { history=[], queue=[] } = await (await fetch('/api/youtube/dashboard')).json();
+    renderYoutube(history, queue);
+  } catch { c.innerHTML = '<div class="empty"><h3>Failed to load data</h3></div>'; }
+}
+
+const CH_COLOR = { wanderingwithme:'#2563eb', film:'#dc2626', motivational:'#16a34a', bola_geming:'#7c3aed' };
+const CH_EMOJI = { wanderingwithme:'🌍', film:'🎬', motivational:'💪', bola_geming:'⚽' };
+const CH_NAME  = { wanderingwithme:'Wanderingwithme', film:'Film / Coroco', motivational:'Motivational', bola_geming:'Bola Geming' };
+const CH_ORDER = ['wanderingwithme','film','motivational','bola_geming'];
+
+function renderYoutube(history, queue) {
+  const c   = document.getElementById('yt-content');
+  const now = new Date();
+
+  // Group history by channel
+  const byChannel = {};
+  CH_ORDER.forEach(ct => byChannel[ct] = []);
+  history.forEach(h => {
+    const ct = h.channel_type || 'wanderingwithme';
+    if (!byChannel[ct]) byChannel[ct] = [];
+    byChannel[ct].push(h);
+  });
+
+  // ── Global KPI ───────────────────────────────────────────
+  const totalViews = history.reduce((s,h)=>s+(h.views||0),0);
+  const totalLikes = history.reduce((s,h)=>s+(h.likes||0),0);
+  const totalPublished = history.filter(h=>h.scheduled_at && new Date(h.scheduled_at)<now).length;
+  const totalScheduled = history.length - totalPublished;
+
+  let html = `<div class="kpi-row">
+    <div class="kpi"><div class="kpi-val blue">${history.length}</div><div class="kpi-lbl">Total Video</div></div>
+    <div class="kpi"><div class="kpi-val green">${totalPublished}</div><div class="kpi-lbl">Sudah Tayang</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#f59e0b">${totalScheduled}</div><div class="kpi-lbl">Terjadwal</div></div>
+    <div class="kpi"><div class="kpi-val">${totalViews.toLocaleString()}</div><div class="kpi-lbl">Total Views</div></div>
+    <div class="kpi"><div class="kpi-val">${totalLikes.toLocaleString()}</div><div class="kpi-lbl">Total Likes</div></div>
+    <div class="kpi"><div class="kpi-val ${queue.length?'orange':''}">${queue.length}</div><div class="kpi-lbl">Upload Queue</div></div>
+  </div>`;
+
+  // ── Per-channel dashboard cards ───────────────────────────
+  html += `<div class="sect-hd">Dashboard Per Channel</div><div class="ch-grid">`;
+  for (const ct of CH_ORDER) {
+    const entries = byChannel[ct] || [];
+    const views   = entries.reduce((s,e)=>s+(e.views||0),0);
+    const likes   = entries.reduce((s,e)=>s+(e.likes||0),0);
+    const published = entries.filter(e=>e.scheduled_at && new Date(e.scheduled_at)<now);
+    const upcoming  = entries
+      .filter(e=>e.scheduled_at && new Date(e.scheduled_at)>=now)
+      .sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at));
+    const topVideo  = [...published].sort((a,b)=>(b.views||0)-(a.views||0))[0];
+    const color     = CH_COLOR[ct] || '#555';
+
+    html += `<div class="ch-card">
+      <div class="ch-card-head" style="border-top:3px solid ${color}">
+        <span class="ch-emoji">${CH_EMOJI[ct]}</span>
+        <span class="ch-name">${CH_NAME[ct]}</span>
+        <span class="ch-count">${entries.length} video</span>
+      </div>
+      <div class="ch-card-body">
+        <div class="ch-stat-row"><span class="ch-stat-lbl">Views</span><span class="ch-stat-val">${views.toLocaleString()}</span></div>
+        <div class="ch-stat-row"><span class="ch-stat-lbl">Likes</span><span class="ch-stat-val">${likes.toLocaleString()}</span></div>
+        <div class="ch-stat-row"><span class="ch-stat-lbl">✅ Tayang</span><span class="ch-stat-val green">${published.length}</span></div>
+        <div class="ch-stat-row"><span class="ch-stat-lbl">🕐 Terjadwal</span><span class="ch-stat-val blue">${upcoming.length}</span></div>
+        ${topVideo ? `<div class="ch-stat-row"><span class="ch-stat-lbl">Top Video</span><span class="ch-stat-val" style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">${topVideo.title||'—'}</span></div>` : ''}
+        ${upcoming.length ? `<div class="ch-upcoming">
+          <div class="ch-upcoming-title">Jadwal Berikutnya</div>
+          ${upcoming.slice(0,3).map(e=>{
+            const d = new Date(e.scheduled_at);
+            const ds = d.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+            return `<div class="ch-upcoming-item"><span>${ds}</span>${e.title||'—'}</div>`;
+          }).join('')}
+        </div>` : `<div class="ch-upcoming"><div class="ch-upcoming-title">Jadwal Berikutnya</div><div class="ch-upcoming-item" style="color:var(--txt3)">Tidak ada jadwal</div></div>`}
+      </div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // ── Upload Queue ──────────────────────────────────────────
+  if (queue.length) {
+    html += `<div class="sect-hd">Upload Queue (${queue.length})</div>
+    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Judul</th><th>Channel</th><th>Masuk Antrian</th></tr></thead><tbody>`;
+    queue.forEach((q,i) => {
+      html += `<tr><td>${i+1}</td><td>${q.title||'—'}</td>
+      <td><span style="color:${CH_COLOR[q.channel_type]||'#555'}">${CH_EMOJI[q.channel_type]||''} ${CH_NAME[q.channel_type]||q.channel_type||'—'}</span></td>
+      <td>${q.queued_at?new Date(q.queued_at).toLocaleString('id-ID'):'—'}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // ── Upload History ────────────────────────────────────────
+  const sorted = [...history].sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at));
+  html += `<div class="sect-hd">Semua Upload History (${history.length})</div>
+  <div class="tbl-wrap"><table>
+  <thead><tr><th>#</th><th>Status</th><th>Judul</th><th>Channel</th><th>Views</th><th>Likes</th><th>Jadwal Tayang</th><th>Copyright</th><th>Link</th></tr></thead><tbody>`;
+  sorted.forEach((h,i) => {
+    const sched = h.scheduled_at ? new Date(h.scheduled_at) : null;
+    const isPublished = sched && sched < now;
+    const schedStr = sched ? sched.toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+    const statusBadge = isPublished
+      ? `<span class="pill pill-green">✅ Tayang</span>`
+      : `<span class="pill pill-blue">🕐 Terjadwal</span>`;
+    const copyrightBadge = h.copyright_status === 'blocked'
+      ? `<span class="pill" style="background:#fee2e2;color:#dc2626">⛔ Blocked</span>`
+      : h.copyright_status === 'claim'
+      ? `<span class="pill" style="background:#fef9c3;color:#a16207">⚠️ Claim</span>`
+      : `<span class="pill pill-green">✅ Aman</span>`;
+    html += `<tr>
+      <td>${i+1}</td>
+      <td>${statusBadge}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.title||'—'}</td>
+      <td><span style="color:${CH_COLOR[h.channel_type]||'#555'}">${CH_EMOJI[h.channel_type]||''} ${CH_NAME[h.channel_type]||h.channel_type||'—'}</span></td>
+      <td>${(h.views||0).toLocaleString()}</td>
+      <td>${(h.likes||0).toLocaleString()}</td>
+      <td><span class="pill ${isPublished?'pill-green':'pill-blue'}">${schedStr}</span></td>
+      <td>${copyrightBadge}</td>
+      <td><a class="yt-link" href="https://youtu.be/${h.video_id}" target="_blank">Tonton ↗</a></td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  c.innerHTML = html;
+}
+
+// ── Scraper ───────────────────────────────────────────────
+let scraperSheets = {};
+async function loadFileList() {
+  const sel = document.getElementById('sel-file');
+  try {
+    const { files=[] } = await (await fetch('/api/scraper/files')).json();
+    sel.innerHTML = '<option value="">-- select report --</option>';
+    for (const f of files) {
+      const opt = document.createElement('option');
+      opt.value = f.path;
+      opt.textContent = `${f.name}  (${f.mtime_str}, ${f.size_kb} KB)`;
+      sel.appendChild(opt);
+    }
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const target = files.find(f=>f.name.includes(today)) || files[0];
+    if (target) { sel.value = target.path; await loadScraperFile(target.path); }
+  } catch { document.getElementById('sheet-body').innerHTML='<div class="empty"><h3>Failed to load file list</h3></div>'; }
+}
+async function onFileChange() {
+  const p = document.getElementById('sel-file').value;
+  if (p) await loadScraperFile(p);
+  else { document.getElementById('sheet-tabs').innerHTML=''; document.getElementById('sheet-body').innerHTML='<div class="empty"><h3>Select a report</h3></div>'; }
+}
+async function loadScraperFile(path) {
+  document.getElementById('sheet-body').innerHTML='<div class="empty"><h3>Reading file...</h3></div>';
+  try {
+    const data = await (await fetch(`/api/scraper/read?path=${encodeURIComponent(path)}`)).json();
+    if (data.error) throw new Error(data.error);
+    scraperSheets = data.sheets || {};
+    const names = Object.keys(scraperSheets);
+    document.getElementById('sheet-tabs').innerHTML = names.map((s,i)=>
+      `<div class="stab ${i===0?'active':''}" onclick="showSheet(this,'${s}')">${s}</div>`).join('');
+    if (names.length) showSheetByName(names[0]);
+    else document.getElementById('sheet-body').innerHTML='<div class="empty"><h3>Empty file</h3></div>';
+  } catch(e) { document.getElementById('sheet-body').innerHTML=`<div class="empty"><h3>Failed to read file</h3><p>${e.message}</p></div>`; }
+}
+function showSheet(el, name) {
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); showSheetByName(name);
+}
+function showSheetByName(name) {
+  const data = scraperSheets[name];
+  const body = document.getElementById('sheet-body');
+  if (!data?.headers.length) { body.innerHTML='<div class="empty"><h3>Empty sheet</h3></div>'; return; }
+  let html = '<div class="tbl-wrap"><table><thead><tr>';
+  html += data.headers.map(h=>`<th>${h}</th>`).join('');
+  html += '</tr></thead><tbody>';
+  for (const row of data.rows) {
+    html += '<tr>'+row.map((c,ci)=>{
+      const n=parseFloat(c);
+      if (!isNaN(n)&&n>=1&&n<=10&&/rating|skor/i.test(data.headers[ci]||'')) {
+        const col=n>=8?'#16a34a':n>=5?'#a16207':'#dc2626';
+        return `<td><span style="color:${col};font-weight:600">${c}</span></td>`;
+      }
+      if (/^https?:\/\//.test(c)) return `<td><a class="yt-link" href="${c}" target="_blank">↗ Link</a></td>`;
+      return `<td>${c}</td>`;
+    }).join('')+'</tr>';
+  }
+  html += `</tbody></table></div><div class="row-count">${data.rows.length} rows</div>`;
+  body.innerHTML = html;
+}
+
+// ── Dark mode ────────────────────────────────────────────
+function toggleDark() {
+  const dark = document.body.classList.toggle('dark');
+  document.getElementById('dark-toggle').textContent = dark ? '🌙' : '☀️';
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+}
+(function initTheme() {
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark');
+    document.getElementById('dark-toggle').textContent = '🌙';
+  }
+})();
+
+// ── Init ──────────────────────────────────────────────────
+buildCards();
+PROCS.forEach(connectWS);
+pollStatus();
+setInterval(pollStatus, 5000);
+</script>
+
+<!-- Password Modal -->
+<div id="pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;min-width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.25);display:flex;flex-direction:column;gap:16px;">
+    <div style="font-size:15px;font-weight:600;color:var(--txt)" id="pwd-modal-title">Konfirmasi Aksi</div>
+    <div style="font-size:12px;color:var(--txt2)">Masukkan password untuk melanjutkan</div>
+    <input id="pwd-input" type="password" placeholder="Password..."
+      style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;">
+    <div id="pwd-error" style="font-size:12px;color:var(--stopping);min-height:16px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="pwdModalCancel()"
+        style="padding:8px 16px;border:1px solid var(--border2);border-radius:8px;background:transparent;color:var(--txt2);cursor:pointer;font-size:13px;font-family:inherit;">
+        Batal
+      </button>
+      <button onclick="pwdModalSubmit()"
+        style="padding:8px 18px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+        Konfirmasi
+      </button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
