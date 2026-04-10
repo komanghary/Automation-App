@@ -405,8 +405,26 @@ table { background:var(--surface); }
 <div class="main">
 
   <!-- Processes -->
-  <div class="panel panel-procs" id="panel-procs">
-    <!-- built by JS -->
+  <div class="panel" id="panel-procs" style="display:none;padding:0;flex-direction:column;">
+    <!-- Auth gate -->
+    <div id="procs-auth" style="flex:1;display:flex;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px 36px;min-width:320px;box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;">
+        <div style="font-size:15px;font-weight:700;color:var(--txt)">🔒 Processes</div>
+        <div style="font-size:12px;color:var(--txt2)">Masukkan password untuk melihat & mengontrol proses</div>
+        <input id="procs-pwd" type="password" placeholder="Password..."
+          style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;"
+          onkeydown="if(event.key==='Enter')procsUnlock()">
+        <div id="procs-err" style="font-size:12px;color:#f87171;min-height:16px;"></div>
+        <button onclick="procsUnlock()"
+          style="padding:10px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+          Buka
+        </button>
+      </div>
+    </div>
+    <!-- Actual process grid (shown after auth) -->
+    <div id="procs-content" class="panel-procs" style="display:none;flex:1;overflow-y:auto;padding:20px 24px;">
+      <!-- built by JS -->
+    </div>
   </div>
 
   <!-- YouTube -->
@@ -495,7 +513,7 @@ const wsMap = {};
 
 // ── Build cards ───────────────────────────────────────────
 function buildCards() {
-  const grid = document.getElementById('panel-procs');
+  const grid = document.getElementById('procs-content');
   for (const name of PROCS) {
     autoScroll[name] = true;
     const card = document.createElement('div');
@@ -578,16 +596,7 @@ document.addEventListener('keydown', e => {
 
 // ── Control ───────────────────────────────────────────────
 async function apiProc(name, action) {
-  const labels = { start: `Start ${PROC_TITLES[name]}`, stop: `Stop ${PROC_TITLES[name]}`, restart: `Restart ${PROC_TITLES[name]}` };
-  const password = await showPwdModal(labels[action] || action);
-  if (password === null) return; // cancelled
-  const headers = { 'Content-Type': 'application/json', 'X-Monitor-Password': password };
-  const res = await fetch(`/api/process/${name}/${action}`, { method: 'POST', headers });
-  if (res.status === 401) {
-    document.getElementById('pwd-modal').style.display = 'flex';
-    document.getElementById('pwd-error').textContent = '❌ Password salah';
-    return;
-  }
+  await fetch(`/api/process/${name}/${action}`, { method: 'POST' });
 }
 
 function applyStatus(name, status) {
@@ -635,8 +644,8 @@ function switchTab(el) {
   const panel = document.getElementById(panelId);
   if (panel) {
     panel.classList.add('active');
-    if (el.dataset.panel === 'shell') panel.style.display = 'flex';
-    else if (el.dataset.panel !== 'procs') panel.style.display = 'block';
+    if (el.dataset.panel === 'shell' || el.dataset.panel === 'procs') panel.style.display = 'flex';
+    else panel.style.display = 'block';
   }
   if (el.dataset.panel === 'youtube') loadYoutube();
   if (el.dataset.panel === 'scraper') loadFileList();
@@ -845,6 +854,26 @@ function toggleDark() {
 
 // ── Init ──────────────────────────────────────────────────
 buildCards();
+// ── Processes auth gate ───────────────────────────────────
+let _procsUnlocked = false;
+function procsUnlock() {
+  const pwd = document.getElementById('procs-pwd').value;
+  if (!pwd) return;
+  fetch('/api/auth/check', { method: 'POST', headers: {'X-Monitor-Password': pwd} })
+    .then(r => {
+      if (r.ok) { _showProcs(); }
+      else { document.getElementById('procs-err').textContent = '❌ Password salah'; }
+    })
+    .catch(() => { document.getElementById('procs-err').textContent = '❌ Gagal konek ke server'; });
+}
+function _showProcs() {
+  _procsUnlocked = true;
+  document.getElementById('procs-auth').style.display = 'none';
+  document.getElementById('procs-content').style.display = 'grid';
+  document.getElementById('procs-pwd').value = '';
+  document.getElementById('procs-err').textContent = '';
+}
+
 PROCS.forEach(connectWS);
 pollStatus();
 setInterval(pollStatus, 5000);

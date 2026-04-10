@@ -130,6 +130,13 @@ async def index():
         return f.read()
 
 
+@app.post("/api/auth/check")
+async def api_auth_check(x_monitor_password: str = Header(default="")):
+    if MONITOR_PASSWORD and x_monitor_password != MONITOR_PASSWORD:
+        return JSONResponse({"ok": False}, status_code=401)
+    return {"ok": True}
+
+
 @app.get("/api/status/all")
 async def status_all():
     return {
@@ -143,9 +150,7 @@ async def status_all():
 
 
 @app.post("/api/process/{name}/start")
-async def api_start(name: str, x_monitor_password: str = Header(default="")):
-    if MONITOR_PASSWORD and x_monitor_password != MONITOR_PASSWORD:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+async def api_start(name: str):
     if name not in PROCESSES:
         return JSONResponse({"error": "unknown"}, status_code=404)
     if _status[name] == "running":
@@ -155,9 +160,7 @@ async def api_start(name: str, x_monitor_password: str = Header(default="")):
 
 
 @app.post("/api/process/{name}/stop")
-async def api_stop(name: str, x_monitor_password: str = Header(default="")):
-    if MONITOR_PASSWORD and x_monitor_password != MONITOR_PASSWORD:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+async def api_stop(name: str):
     if name not in PROCESSES:
         return JSONResponse({"error": "unknown"}, status_code=404)
     proc = _handles.get(name)
@@ -168,9 +171,7 @@ async def api_stop(name: str, x_monitor_password: str = Header(default="")):
 
 
 @app.post("/api/process/{name}/restart")
-async def api_restart(name: str, x_monitor_password: str = Header(default="")):
-    if MONITOR_PASSWORD and x_monitor_password != MONITOR_PASSWORD:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+async def api_restart(name: str):
     if name not in PROCESSES:
         return JSONResponse({"error": "unknown"}, status_code=404)
     proc = _handles.get(name)
