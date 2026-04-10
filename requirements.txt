@@ -1,0 +1,12 @@
+discord.py>=2.3
+instagrapi>=2.0
+python-dotenv
+requests
+Pillow
+pilmoji
+google-generativeai
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+openpyxl
+beautifulsoup4

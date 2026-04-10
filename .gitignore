@@ -1,0 +1,54 @@
+# Environment & secrets
+.env
+scrapers/.env.scraper
+*.json
+!package.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Bot runtime data
+data/
+temp_downloads/
+output/
+scrapers/output/
+bot.log
+scrapers/scraper_output.log
+scrapers/trending_output.log
+
+# Large model files
+*.pth
+*.pt
+
+# YouTube OAuth tokens (generated at runtime)
+youtube_token*.json
+
+# Lock file
+data/bot.lock
+
+# Log files
+*.log
+bot_output.log
+
+# Test/temp files
+test_*.png
+test_*.mp4
+
+# Fonts (too large, install separately)
+fonts/
+
+# Watermark assets (too large)
+watermarks/
+
+# Client secrets (DO NOT COMMIT)
+client_secret*.json
