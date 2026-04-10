@@ -29,16 +29,26 @@ from config import BASE_DIR, FFMPEG, TEMP_DIR
 
 def ig_login(username: str, password: str) -> IGClient:
     cl = IGClient()
+    cl.delay_range = [1, 3]
     session_file = os.path.join(BASE_DIR, f"{username}_session.json")
+
     if os.path.exists(session_file):
         print("[IG] Memuat sesi tersimpan...")
         try:
             cl.load_settings(session_file)
-            cl.login(username, password)
-            print("[IG] Login berhasil (sesi lama).")
+            # Validate session without triggering full re-login
+            cl.get_timeline_feed()
+            print("[IG] Sesi masih valid, tidak perlu login ulang.")
+            cl.dump_settings(session_file)  # refresh expiry
             return cl
-        except Exception:
-            print("[IG] Sesi lama tidak valid, login ulang...")
+        except ChallengeRequired:
+            print("[IG] Instagram minta verifikasi. Login manual dulu di browser/HP.")
+            raise
+        except Exception as e:
+            print(f"[IG] Sesi tidak valid ({e}), login ulang dengan password...")
+            cl = IGClient()
+            cl.delay_range = [1, 3]
+
     try:
         cl.login(username, password)
         cl.dump_settings(session_file)

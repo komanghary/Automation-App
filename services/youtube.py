@@ -42,7 +42,13 @@ def yt_authenticate(client_secret: str = None, token_file: str = None):
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(GoogleAuthRequest())
-        except Exception:
+            # Save refreshed token so it doesn't expire on next startup
+            os.makedirs(os.path.dirname(token_file), exist_ok=True)
+            with open(token_file, 'w') as f:
+                f.write(creds.to_json())
+            print(f"[YouTube] Token di-refresh dan disimpan: {token_file}")
+        except Exception as e:
+            print(f"[YouTube] Refresh token gagal ({e}), perlu auth ulang...")
             creds = None
 
     if not creds or not creds.valid:

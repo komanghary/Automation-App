@@ -365,6 +365,7 @@ table { background:var(--surface); }
     <button class="ntab active" data-panel="procs"   onclick="switchTab(this)">Processes</button>
     <button class="ntab"        data-panel="youtube" onclick="switchTab(this)">YouTube</button>
     <button class="ntab"        data-panel="scraper" onclick="switchTab(this)">Scraper</button>
+    <button class="ntab"        data-panel="shell"   onclick="switchTab(this)">⚡ Terminal</button>
   </div>
 
   <div class="hdr-chips">
@@ -430,6 +431,41 @@ table { background:var(--surface); }
       <div class="empty">
         <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         <h3>Click tab Scraper to load reports</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shell Terminal -->
+  <div class="panel" id="panel-shell" style="padding:0;display:none;flex-direction:column;">
+    <!-- Auth screen -->
+    <div id="shell-auth" style="flex:1;display:flex;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px 36px;min-width:340px;box-shadow:var(--shadow-md);display:flex;flex-direction:column;gap:14px;">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">⚡ Terminal Access</div>
+        <div style="font-size:12px;color:var(--txt2)">Diperlukan 2 password untuk mengakses shell</div>
+        <input id="shell-p1" type="password" placeholder="Password 1 (Monitor password)..."
+          style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;">
+        <input id="shell-p2" type="password" placeholder="Password 2 (Shell password)..."
+          style="padding:9px 13px;border:1px solid var(--border2);border-radius:8px;background:var(--bg);color:var(--txt);font-size:13px;outline:none;font-family:inherit;">
+        <div id="shell-auth-err" style="font-size:12px;color:#f87171;min-height:16px;"></div>
+        <button onclick="shellConnect()"
+          style="padding:10px;border:none;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;">
+          Connect
+        </button>
+      </div>
+    </div>
+    <!-- Terminal screen -->
+    <div id="shell-term" style="display:none;flex:1;flex-direction:column;height:100%;">
+      <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
+        <span style="font-size:12px;font-weight:600;color:var(--running)">● Connected</span>
+        <span id="shell-cwd" style="font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <button onclick="shellDisconnect()" style="font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;">Disconnect</button>
+      </div>
+      <div id="shell-output" style="flex:1;background:#0f172a;font-family:'JetBrains Mono','Courier New',monospace;font-size:12px;line-height:1.7;padding:12px 16px;overflow-y:auto;color:#94a3b8;white-space:pre-wrap;word-break:break-all;"></div>
+      <div style="background:#0a0f1e;border-top:1px solid #1e293b;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <span id="shell-prompt" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#38bdf8;flex-shrink:0;">$</span>
+        <input id="shell-input" type="text" placeholder="Ketik perintah..."
+          style="flex:1;background:transparent;border:none;outline:none;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:12px;"
+          onkeydown="shellKey(event)">
       </div>
     </div>
   </div>
@@ -603,7 +639,8 @@ function switchTab(el) {
   const panel = document.getElementById(panelId);
   if (panel) {
     panel.classList.add('active');
-    if (el.dataset.panel !== 'procs') panel.style.display = 'block';
+    if (el.dataset.panel === 'shell') panel.style.display = 'flex';
+    else if (el.dataset.panel !== 'procs') panel.style.display = 'block';
   }
   if (el.dataset.panel === 'youtube') loadYoutube();
   if (el.dataset.panel === 'scraper') loadFileList();
@@ -703,8 +740,8 @@ function renderYoutube(history, queue) {
   }
 
   // ── Upload History ────────────────────────────────────────
-  const sorted = [...history].sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at));
-  html += `<div class="sect-hd">Semua Upload History (${history.length})</div>
+  const sorted = [...history].sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at)).slice(0,50);
+  html += `<div class="sect-hd">Upload History (50 terbaru dari ${history.length})</div>
   <div class="tbl-wrap"><table>
   <thead><tr><th>#</th><th>Status</th><th>Judul</th><th>Channel</th><th>Views</th><th>Likes</th><th>Jadwal Tayang</th><th>Copyright</th><th>Link</th></tr></thead><tbody>`;
   sorted.forEach((h,i) => {
@@ -815,6 +852,103 @@ buildCards();
 PROCS.forEach(connectWS);
 pollStatus();
 setInterval(pollStatus, 5000);
+
+// ── Shell Terminal ─────────────────────────────────────────
+let shellWs = null;
+let shellHistory = [];
+let shellHistIdx = -1;
+let shellBusy = false;
+
+function shellConnect() {
+  const p1 = document.getElementById('shell-p1').value;
+  const p2 = document.getElementById('shell-p2').value;
+  if (!p1 || !p2) { document.getElementById('shell-auth-err').textContent = 'Isi kedua password'; return; }
+  document.getElementById('shell-auth-err').textContent = 'Menghubungkan...';
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  shellWs = new WebSocket(`${proto}//${location.host}/terminal`);
+  shellWs.onopen = () => shellWs.send(JSON.stringify({p1, p2}));
+  shellWs.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.t === 'auth') {
+      if (msg.ok) {
+        document.getElementById('shell-auth').style.display = 'none';
+        const term = document.getElementById('shell-term');
+        term.style.display = 'flex';
+        document.getElementById('shell-p1').value = '';
+        document.getElementById('shell-p2').value = '';
+        document.getElementById('shell-output').textContent = '⚡ Shell terhubung. Ketik perintah di bawah.\n\n';
+        document.getElementById('shell-input').focus();
+      } else {
+        document.getElementById('shell-auth-err').textContent = '❌ ' + (msg.msg || 'Password salah');
+        shellWs.close(); shellWs = null;
+      }
+      return;
+    }
+    if (msg.t === 'out') {
+      const out = document.getElementById('shell-output');
+      out.textContent += msg.d;
+      out.scrollTop = out.scrollHeight;
+    }
+    if (msg.t === 'done') {
+      shellBusy = false;
+      if (msg.cwd) document.getElementById('shell-cwd').textContent = msg.cwd;
+      document.getElementById('shell-input').disabled = false;
+      document.getElementById('shell-input').focus();
+    }
+  };
+  shellWs.onclose = () => {
+    if (document.getElementById('shell-term').style.display !== 'none') {
+      const out = document.getElementById('shell-output');
+      out.textContent += '\n[Koneksi terputus]\n';
+      out.scrollTop = out.scrollHeight;
+    }
+    shellWs = null; shellBusy = false;
+  };
+  shellWs.onerror = () => {
+    document.getElementById('shell-auth-err').textContent = '❌ Gagal konek ke server';
+    shellWs = null;
+  };
+}
+
+function shellDisconnect() {
+  if (shellWs) { shellWs.close(); shellWs = null; }
+  document.getElementById('shell-term').style.display = 'none';
+  document.getElementById('shell-auth').style.display = 'flex';
+  document.getElementById('shell-auth-err').textContent = '';
+}
+
+function shellKey(e) {
+  if (e.key === 'Enter') {
+    const inp = document.getElementById('shell-input');
+    const cmd = inp.value.trim();
+    if (!cmd || shellBusy || !shellWs) return;
+    shellHistory.unshift(cmd);
+    shellHistIdx = -1;
+    inp.value = '';
+    inp.disabled = true;
+    shellBusy = true;
+    shellWs.send(JSON.stringify({cmd}));
+  }
+  if (e.key === 'ArrowUp') {
+    if (shellHistIdx < shellHistory.length - 1) {
+      shellHistIdx++;
+      document.getElementById('shell-input').value = shellHistory[shellHistIdx] || '';
+    }
+    e.preventDefault();
+  }
+  if (e.key === 'ArrowDown') {
+    if (shellHistIdx > 0) { shellHistIdx--; document.getElementById('shell-input').value = shellHistory[shellHistIdx] || ''; }
+    else { shellHistIdx = -1; document.getElementById('shell-input').value = ''; }
+    e.preventDefault();
+  }
+}
+
+// Focus input when clicking terminal area
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('shell-output')?.addEventListener('click', () => {
+    if (shellWs) document.getElementById('shell-input').focus();
+  });
+});
 </script>
 
 <!-- Password Modal -->

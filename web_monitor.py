@@ -21,6 +21,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 MONITOR_PASSWORD = os.getenv("MONITOR_PASSWORD", "")
+SHELL_PASSWORD   = os.getenv("SHELL_PASSWORD", "")
 JEGAR_DIR  = os.path.join(os.path.dirname(BASE_DIR), "Jegar jegur")
 DATA_DIR   = os.path.join(BASE_DIR, "data")
 UI_FILE    = os.path.join(BASE_DIR, "monitor_ui.html")
@@ -275,6 +276,93 @@ async def scraper_read(path: str):
         return JSONResponse({"error": str(e)}, status_code=500)
 
     return result
+
+
+# ── Shell terminal ────────────────────────────────────────────────────────────
+
+@app.websocket("/terminal")
+async def ws_shell(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        # Layer 1+2 auth — first message must be JSON with both passwords
+        raw = await asyncio.wait_for(websocket.receive_text(), timeout=15)
+        data = json.loads(raw)
+        p1 = data.get("p1", "")
+        p2 = data.get("p2", "")
+        if not MONITOR_PASSWORD or not SHELL_PASSWORD:
+            await websocket.send_text(json.dumps({"t": "auth", "ok": False, "msg": "Shell password belum dikonfigurasi di .env"}))
+            await websocket.close()
+            return
+        if p1 != MONITOR_PASSWORD or p2 != SHELL_PASSWORD:
+            await websocket.send_text(json.dumps({"t": "auth", "ok": False, "msg": "Password salah"}))
+            await websocket.close()
+            return
+        await websocket.send_text(json.dumps({"t": "auth", "ok": True}))
+
+        # Build full Windows PATH for subprocess so all tools (claude, npm, etc.) are accessible
+        import subprocess as _sp
+        _win_path_extras = [
+            r"C:\Users\Administrator\AppData\Roaming\npm",
+            r"C:\Users\Administrator\.local\bin",
+            r"C:\Users\Administrator\.bun\bin",
+            r"C:\Program Files\nodejs",
+            r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314\Scripts",
+            r"C:\Users\Administrator\AppData\Local\Programs\Python\Python314",
+            r"C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Links",
+            r"C:\WINDOWS\system32",
+            r"C:\WINDOWS",
+        ]
+        _shell_env = os.environ.copy()
+        _cur_path = _shell_env.get("PATH", "")
+        _extra = ";".join(p for p in _win_path_extras if p.replace("\\", "/").lower() not in _cur_path.lower())
+        if _extra:
+            _shell_env["PATH"] = _extra + ";" + _cur_path
+
+        # Command loop
+        cwd = BASE_DIR
+        while True:
+            raw = await websocket.receive_text()
+            data = json.loads(raw)
+            cmd = data.get("cmd", "").strip()
+            if not cmd:
+                continue
+
+            # Handle cd separately so cwd persists
+            if cmd.startswith("cd "):
+                target = cmd[3:].strip().strip('"').strip("'")
+                new_cwd = os.path.normpath(os.path.join(cwd, target))
+                if os.path.isdir(new_cwd):
+                    cwd = new_cwd
+                    await websocket.send_text(json.dumps({"t": "out", "d": f"{cwd}\n"}))
+                else:
+                    await websocket.send_text(json.dumps({"t": "out", "d": f"cd: no such directory: {target}\n"}))
+                await websocket.send_text(json.dumps({"t": "done", "code": 0, "cwd": cwd}))
+                continue
+
+            await websocket.send_text(json.dumps({"t": "out", "d": f"\x1b[90m$ {cmd}\x1b[0m\n"}))
+            try:
+                proc = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                    cwd=cwd,
+                    env=_shell_env,
+                )
+                while True:
+                    line = await proc.stdout.readline()
+                    if not line:
+                        break
+                    await websocket.send_text(json.dumps({"t": "out", "d": line.decode("utf-8", errors="replace")}))
+                await proc.wait()
+                await websocket.send_text(json.dumps({"t": "done", "code": proc.returncode, "cwd": cwd}))
+            except Exception as e:
+                await websocket.send_text(json.dumps({"t": "out", "d": f"[ERROR] {e}\n"}))
+                await websocket.send_text(json.dumps({"t": "done", "code": 1, "cwd": cwd}))
+
+    except (WebSocketDisconnect, asyncio.TimeoutError, json.JSONDecodeError):
+        pass
+    except Exception:
+        pass
 
 
 # ── Auto-start on launch ──────────────────────────────────────────────────────
