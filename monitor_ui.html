@@ -924,6 +924,253 @@ tbody td{padding:10px 16px;font-size:12px;color:var(--txt);}
 }
 
 .panel.active{animation:fade-up 0.2s ease;}
+
+/* ─── Mobile: Bottom Nav ─────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-w: 0px;
+    --topbar-h:  52px;
+    --bottom-nav-h: 62px;
+  }
+
+  /* Body stays row but sidebar moves to bottom */
+  body { flex-direction: column; }
+
+  /* ── Sidebar → Bottom Nav ── */
+  .sidebar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    height: var(--bottom-nav-h);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    gap: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    z-index: 300;
+    box-shadow: 0 -4px 24px rgba(99,102,241,0.08);
+    order: 10;
+  }
+
+  /* Hide logo and divider on mobile */
+  .sb-logo, .sb-divider { display: none; }
+
+  /* Nav buttons fill the bar */
+  .ntab {
+    flex: 1;
+    width: auto;
+    height: 50px;
+    border-radius: 10px;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--txt3);
+    position: relative;
+  }
+
+  /* Override tooltip — show text labels under icons */
+  .ntab[title]:hover::after,
+  .ntab[data-panel="youtube"]::after,
+  .ntab[data-panel="scraper"]::after,
+  .ntab[data-panel="shell"]::after,
+  .ntab[data-panel="claude"]::after,
+  .ntab[data-panel="procs"]::after {
+    position: static !important;
+    background: none !important;
+    color: currentColor !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    font-size: 9px !important;
+    font-weight: 600 !important;
+    display: block !important;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .ntab[data-panel="youtube"]::after,
+  .ntab[data-panel="youtube"]:hover::after { content: 'YouTube' !important; }
+  .ntab[data-panel="scraper"]::after,
+  .ntab[data-panel="scraper"]:hover::after { content: 'Scraper' !important; }
+  .ntab[data-panel="shell"]::after,
+  .ntab[data-panel="shell"]:hover::after   { content: 'Terminal' !important; }
+  .ntab[data-panel="claude"]::after,
+  .ntab[data-panel="claude"]:hover::after  { content: 'Claude' !important; }
+  .ntab[data-panel="procs"]::after,
+  .ntab[data-panel="procs"]:hover::after   { content: 'Procs' !important; }
+
+  .ntab svg { width: 20px; height: 20px; }
+
+  .ntab.active::before { display: none; }
+  .ntab.active {
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+    color: var(--p1);
+    border-radius: 10px;
+  }
+
+  /* Dark toggle goes into top bar on mobile */
+  .sb-bottom { display: none; }
+
+  /* ── Main wrap full width ── */
+  .main-wrap {
+    width: 100%;
+    flex: 1;
+    padding-bottom: var(--bottom-nav-h);
+  }
+
+  /* ── Topbar compact ── */
+  .topbar {
+    padding: 0 14px;
+    height: var(--topbar-h);
+  }
+
+  .topbar-title { font-size: 14px; }
+  .topbar-breadcrumb { display: none; }
+
+  /* Show dark toggle in topbar on mobile */
+  .topbar::after {
+    content: '';
+  }
+
+  .hdr-time {
+    display: none;
+  }
+
+  .hdr-chips { gap: 4px; }
+  .chip { padding: 4px 8px; font-size: 10px; }
+
+  /* Dark toggle inline in topbar */
+  .topbar .dark-toggle-mobile {
+    display: flex !important;
+  }
+
+  /* ── Stats bar horizontal scroll ── */
+  .stats-bar {
+    overflow-x: auto;
+    padding: 0 14px;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+  .sb-item { padding: 0 14px; flex-shrink: 0; }
+  .sb-val { font-size: 17px; }
+
+  /* ── Panels ── */
+  .panel { padding: 14px; }
+
+  /* ── Process Grid: 1 col ── */
+  .panel-procs.active {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: none !important;
+    overflow-y: auto !important;
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  .proc-card { min-height: 240px; }
+
+  /* ── KPI Row: 3 cols on mobile ── */
+  .kpi-row { gap: 8px; }
+  .kpi { min-width: calc(33% - 6px); padding: 12px 14px; }
+  .kpi-val { font-size: 22px; }
+
+  /* ── Channel Grid: 2 col ── */
+  .ch-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+
+  /* ── Bento: 2 col ── */
+  .yt-bento { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .yt-bento-val { font-size: 24px; }
+
+  /* ── Channel mini: 2 col ── */
+  .yt-ch-mini-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+
+  /* ── Hero: stack vertically ── */
+  .yt-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px 18px;
+    gap: 16px;
+  }
+
+  .yt-mascot-area {
+    align-self: flex-end;
+    margin-top: -48px;
+  }
+
+  .yt-speech { max-width: 160px; }
+  .yt-mascot { width: 60px; height: 60px; font-size: 30px; }
+  .yt-clock-time { font-size: 26px; }
+  .yt-hero-title { font-size: 19px; }
+
+  /* ── Tables: scroll ── */
+  .tbl-wrap { border-radius: 10px; }
+  tbody td, thead th { padding: 8px 12px; font-size: 11px; }
+
+  /* ── Auth Card: full width ── */
+  .auth-center { padding: 16px; align-items: flex-start; padding-top: 24px; }
+  .auth-card {
+    min-width: unset;
+    width: 100%;
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  /* ── Panel heading ── */
+  .panel-hd { font-size: 16px; margin-bottom: 14px; }
+
+  /* ── Scraper bar: stack ── */
+  .scraper-bar { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .file-select { width: 100%; }
+
+  /* ── Recent uploads: hide date col ── */
+  .yt-recent-date { display: none; }
+  .yt-recent-ch   { display: none; }
+  .yt-recent-row  { padding: 9px 12px; }
+
+  /* ── Term bar: compact ── */
+  .term-bar { padding: 6px 12px; gap: 6px; }
+  .term-label { display: none; }
+
+  /* ── Password modal ── */
+  .pwd-modal-box {
+    min-width: unset;
+    width: calc(100vw - 32px);
+    padding: 22px 20px;
+    border-radius: 16px;
+  }
+
+  /* ── Sect header ── */
+  .sect-hd { margin: 16px 0 8px; }
+
+  /* ── ch card stats compact ── */
+  .ch-card-head { padding: 10px 14px 8px; }
+  .ch-card-body { padding: 8px 14px 12px; }
+}
+
+/* ── Very small phones ── */
+@media (max-width: 375px) {
+  .kpi-row { gap: 6px; }
+  .kpi { min-width: calc(50% - 4px); }
+  .ch-grid { grid-template-columns: 1fr !important; }
+  .yt-bento { grid-template-columns: 1fr 1fr !important; }
+  .yt-ch-mini-grid { grid-template-columns: 1fr !important; }
+  .yt-mascot-area { display: none; }
+}
+
+/* ── Safe area for iOS notch ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    .sidebar {
+      padding-bottom: env(safe-area-inset-bottom);
+      height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+    }
+    .main-wrap {
+      padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+    }
+  }
+}
 </style>
 </head>
 <body>
@@ -1016,6 +1263,8 @@ tbody td{padding:10px 16px;font-size:12px;color:var(--txt);}
       <div class="chip stp"><div class="cdot"></div><span id="chip-stp">4 stopped</span></div>
     </div>
     <div class="hdr-time" id="hdr-time"></div>
+    <button class="dark-toggle" id="dark-toggle-mobile" onclick="toggleDark()" title="Toggle dark mode"
+      style="display:none;width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);background:var(--surface);font-size:14px;cursor:pointer;flex-shrink:0;align-items:center;justify-content:center;">☀️</button>
   </div>
 
   <!-- Stats Bar -->
@@ -1681,16 +1930,32 @@ function showSheetByName(name) {
 }
 
 // ── Dark mode ────────────────────────────────────────────
+function _syncDarkToggles(dark) {
+  const icon = dark ? '🌙' : '☀️';
+  const t1 = document.getElementById('dark-toggle');
+  const t2 = document.getElementById('dark-toggle-mobile');
+  if (t1) t1.textContent = icon;
+  if (t2) t2.textContent = icon;
+}
 function toggleDark() {
   const dark = document.body.classList.toggle('dark');
-  document.getElementById('dark-toggle').textContent = dark ? '🌙' : '☀️';
+  _syncDarkToggles(dark);
   localStorage.setItem('theme', dark ? 'dark' : 'light');
 }
 (function initTheme() {
-  if (localStorage.getItem('theme') === 'dark') {
-    document.body.classList.add('dark');
-    document.getElementById('dark-toggle').textContent = '🌙';
+  const dark = localStorage.getItem('theme') === 'dark';
+  if (dark) document.body.classList.add('dark');
+  _syncDarkToggles(dark);
+
+  // Show mobile dark toggle on small screens
+  function checkMobile() {
+    const mb = document.getElementById('dark-toggle-mobile');
+    if (!mb) return;
+    const isMobile = window.innerWidth <= 768;
+    mb.style.display = isMobile ? 'flex' : 'none';
   }
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
 })();
 
 // ── Init ──────────────────────────────────────────────────
