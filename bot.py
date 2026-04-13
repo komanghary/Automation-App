@@ -29,13 +29,25 @@ def _acquire_lock():
         try:
             with open(_LOCK_FILE) as f:
                 old_pid = int(f.read().strip())
-            # Check if that PID is still alive
-            import ctypes
+            # Verify PID is alive AND is actually bot.py (not a recycled PID)
+            import ctypes, subprocess as _sp
             handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, old_pid)
             if handle:
                 ctypes.windll.kernel32.CloseHandle(handle)
-                print(f"[ERROR] Bot sudah berjalan (PID {old_pid}). Hentikan instance lama dulu.")
-                sys.exit(1)
+                try:
+                    out = _sp.check_output(
+                        ['wmic', 'process', 'where', f'ProcessId={old_pid}', 'get', 'CommandLine'],
+                        stderr=_sp.DEVNULL, text=True, timeout=3
+                    )
+                    if 'bot.py' not in out:
+                        raise ValueError("PID reused by different process")
+                except Exception:
+                    pass  # Can't verify → treat as stale
+                else:
+                    print(f"[ERROR] Bot sudah berjalan (PID {old_pid}). Hentikan instance lama dulu.")
+                    sys.exit(1)
+        except SystemExit:
+            raise
         except Exception:
             pass  # stale lock — overwrite it
     with open(_LOCK_FILE, 'w') as f:

@@ -156,9 +156,10 @@ class YouTubeUploadView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Upload ke YouTube", style=discord.ButtonStyle.green, emoji="\U0001F4F9")
+    @discord.ui.button(label="Upload ke YouTube", style=discord.ButtonStyle.green, emoji="\U0001F4F9", custom_id="yt_upload_confirm")
     async def upload_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(
+        await interaction.response.defer()
+        await interaction.edit_original_response(
             content=f"Uploading **{self.title}** ke YouTube...\nGenerating deskripsi dengan Gemini...",
             view=None,
         )
@@ -240,9 +241,10 @@ class YouTubeUploadView(discord.ui.View):
 
         self.stop()
 
-    @discord.ui.button(label="Tidak, Skip", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Tidak, Skip", style=discord.ButtonStyle.red, custom_id="yt_upload_skip")
     async def skip_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.edit_message(
+        await interaction.response.defer()
+        await interaction.edit_original_response(
             content="Skipped YouTube upload. Menghapus file & chat watermark...",
             view=None,
         )
@@ -389,6 +391,12 @@ class ConfirmView(discord.ui.View):
                 author_id=self.author_id or interaction.user.id,
                 wm_msg_ids=wm_msg_ids,
             )
+            # Persist so view survives bot restart
+            job["view_type"] = "youtube_upload"
+            job["author_id"] = self.author_id or interaction.user.id
+            job["wm_msg_ids"] = wm_msg_ids
+            save_pending_jobs()
+            bot.add_view(yt_view)
 
             await interaction.edit_original_response(
                 content=(
@@ -554,25 +562,25 @@ class TitleModal(discord.ui.Modal, title="Kirim ke Watermark"):
         self.user_id = user_id
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
         title_text = self.title_input.value.strip()
         if not title_text:
-            await interaction.response.send_message("Title kosong!", ephemeral=True)
+            await interaction.followup.send("Title kosong!", ephemeral=True)
             return
 
         if not WATERMARK_CHANNEL_ID:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "WATERMARK_CHANNEL_ID belum diset!", ephemeral=True
             )
             return
 
         wm_channel = bot.get_channel(WATERMARK_CHANNEL_ID)
         if not wm_channel:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "Watermark channel tidak ditemukan!", ephemeral=True
             )
             return
-
-        await interaction.response.defer()
 
         if not os.path.exists(self.hd_path):
             return
@@ -1160,6 +1168,21 @@ def restore_persistent_views():
                 view = MotivationalWatermarkView(hd_path, preview_path)
                 bot.add_view(view)
                 tracked_hd_paths.add(hd_path)
+                restored += 1
+            else:
+                pending_jobs.pop(job_key, None)
+
+        elif view_type == "youtube_upload":
+            hq_path = job.get("hq_path", "")
+            if hq_path and os.path.exists(hq_path):
+                view = YouTubeUploadView(
+                    job_key=int(job_key),
+                    hq_path=hq_path,
+                    title=job.get("title", ""),
+                    author_id=job.get("author_id", 0),
+                    wm_msg_ids=job.get("wm_msg_ids", []),
+                )
+                bot.add_view(view)
                 restored += 1
             else:
                 pending_jobs.pop(job_key, None)
