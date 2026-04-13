@@ -514,26 +514,101 @@ tbody td{padding:10px 16px;font-size:12px;color:var(--txt);}
 .yt-link:hover{color:var(--p2);text-decoration:underline;}
 
 /* ─── Scraper ────────────────────────────────────────────── */
-.scraper-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
-.scraper-bar label{font-size:11px;color:var(--txt2);font-weight:600;white-space:nowrap;text-transform:uppercase;letter-spacing:0.4px;}
+.scraper-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.scraper-bar label{font-size:10px;color:var(--txt3);font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:0.6px;}
 
 .file-select{
-  flex:1;font-family:'Inter',sans-serif;font-size:12px;
+  flex:1;min-width:200px;font-family:'Inter',sans-serif;font-size:12px;
   background:var(--surface);color:var(--txt);
   border:1px solid var(--border2);border-radius:var(--r-xs);
   padding:7px 12px;outline:none;transition:var(--trans);
 }
 .file-select:focus{border-color:var(--p1);box-shadow:0 0 0 3px rgba(99,102,241,0.1);}
 
+.scraper-search{
+  font-family:'Inter',sans-serif;font-size:12px;
+  background:var(--surface);color:var(--txt);
+  border:1px solid var(--border2);border-radius:var(--r-xs);
+  padding:7px 12px 7px 34px;outline:none;transition:var(--trans);
+  width:180px;flex-shrink:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:10px center;
+}
+.scraper-search:focus{border-color:var(--p1);box-shadow:0 0 0 3px rgba(99,102,241,0.1);}
+.scraper-search::placeholder{color:var(--txt3);}
+
 .sheet-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;}
 
 .stab{
-  font-size:11px;font-weight:600;padding:5px 12px;border-radius:var(--r-xs);
+  font-size:11px;font-weight:600;padding:5px 14px;border-radius:20px;
   cursor:pointer;background:var(--surface);border:1px solid var(--border2);
   color:var(--txt2);transition:var(--trans);
 }
 .stab:hover{background:var(--bg);border-color:var(--p1);color:var(--p1);}
 .stab.active{background:var(--p1);color:#fff;border-color:var(--p1);box-shadow:0 2px 8px rgba(99,102,241,0.3);}
+
+/* ─── Scraper Table Improvements ────────────────────────── */
+.scraper-tbl-wrap{
+  overflow-x:auto;
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  margin-bottom:12px;
+  box-shadow:var(--sh);
+  max-height:calc(100vh - 280px);
+  overflow-y:auto;
+}
+
+.scraper-tbl-wrap table { width:100%; border-collapse:collapse; background:var(--surface); }
+
+.scraper-tbl-wrap thead { position:sticky; top:0; z-index:10; }
+
+.scraper-tbl-wrap thead th {
+  background:var(--bg);
+  color:var(--txt2);
+  font-size:10px;font-weight:700;
+  letter-spacing:0.5px;text-transform:uppercase;
+  padding:9px 14px;text-align:left;
+  border-bottom:2px solid var(--border2);
+  white-space:nowrap;cursor:pointer;user-select:none;
+  transition:color 0.15s,background 0.15s;
+}
+
+.scraper-tbl-wrap thead th:hover { color:var(--txt); background:var(--surface); }
+.scraper-tbl-wrap thead th.sort-asc::after  { content:' ↑'; color:var(--p1); }
+.scraper-tbl-wrap thead th.sort-desc::after { content:' ↓'; color:var(--p1); }
+.scraper-tbl-wrap thead th.sort-asc,
+.scraper-tbl-wrap thead th.sort-desc { color:var(--p1); background:rgba(99,102,241,0.04); }
+
+.scraper-tbl-wrap tbody tr {
+  border-bottom:1px solid var(--border);
+  transition:background 0.1s;
+}
+.scraper-tbl-wrap tbody tr:last-child{border-bottom:none;}
+.scraper-tbl-wrap tbody tr:hover{background:rgba(99,102,241,0.03);}
+.scraper-tbl-wrap tbody tr:nth-child(even){background:rgba(99,102,241,0.015);}
+.scraper-tbl-wrap tbody tr:nth-child(even):hover{background:rgba(99,102,241,0.04);}
+
+.scraper-tbl-wrap tbody td {
+  padding:8px 14px;font-size:12px;color:var(--txt);
+  max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+.scraper-tbl-wrap td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; color:var(--txt); }
+.scraper-tbl-wrap td.num-hi { color:var(--green); }
+.scraper-tbl-wrap td.num-lo { color:var(--red); }
+
+.scraper-meta{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:8px;padding:0 2px;
+}
+.scraper-count{font-size:11px;color:var(--txt3);font-weight:500;}
+.scraper-hint {font-size:10px;color:var(--txt3);}
+
+body.dark .scraper-tbl-wrap thead th { background:rgba(255,255,255,0.03); border-bottom-color:rgba(255,255,255,0.08); }
+body.dark .scraper-tbl-wrap tbody tr:nth-child(even){background:rgba(255,255,255,0.015);}
+body.dark .scraper-tbl-wrap tbody tr:hover{background:rgba(255,255,255,0.04);}
+body.dark .scraper-tbl-wrap { border-color:rgba(255,255,255,0.05); }
+body.dark .scraper-search { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
 
 /* ─── Channel Cards ──────────────────────────────────────── */
 .ch-grid{
@@ -1498,6 +1573,7 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
         <select class="file-select" id="sel-file" onchange="onFileChange()">
           <option value="">-- select report --</option>
         </select>
+        <input class="scraper-search" id="scraper-search" type="text" placeholder="Search rows…" oninput="scraperSearch(this.value)">
       </div>
       <div class="sheet-tabs" id="sheet-tabs"></div>
       <div id="sheet-body">
@@ -2059,7 +2135,22 @@ function showSheetByName(name) {
     allRows = allRows.slice(1);
   }
 
+  // Detect which columns are predominantly numeric (>=70% numeric values)
+  const isNumCol = headers.map((h, ci) => {
+    const nonEmpty = allRows.filter(r => r[ci] !== '' && r[ci] !== null && r[ci] !== undefined);
+    if (!nonEmpty.length) return false;
+    const numCount = nonEmpty.filter(r => !isNaN(parseFloat(String(r[ci]).replace(/[.,]/g, '')))).length;
+    return numCount / nonEmpty.length >= 0.7;
+  });
+
+  // Apply search filter
+  const q = (document.getElementById('scraper-search')?.value || '').toLowerCase().trim();
+
   let rows = [...allRows];
+  if (q) {
+    rows = rows.filter(row => row.some(c => String(c).toLowerCase().includes(q)));
+  }
+
   const { col, dir } = _scraperSort;
   if (col >= 0) {
     rows.sort((a, b) => {
@@ -2071,7 +2162,7 @@ function showSheetByName(name) {
   }
 
   const colCount = headers.length;
-  let html = '<div class="tbl-wrap"><table><thead>';
+  let html = '<div class="scraper-tbl-wrap"><table><thead>';
   if (titleRow) {
     html += `<tr><th colspan="${colCount}" style="text-align:center;font-size:11px;letter-spacing:.5px;color:var(--txt2);background:var(--bg)">${titleRow}</th></tr>`;
   }
@@ -2079,24 +2170,32 @@ function showSheetByName(name) {
   html += headers.map((h, ci) => {
     let cls = 'sortable';
     if (col === ci) cls += dir === 'desc' ? ' sort-desc' : ' sort-asc';
-    return `<th class="${cls}" onclick="scraperSortBy(${ci})">${h}</th>`;
+    return `<th class="${cls}" onclick="scraperSortBy(${ci})">${h || '—'}</th>`;
   }).join('');
   html += '</tr></thead><tbody>';
 
   for (const row of rows) {
-    html += '<tr>'+row.map((c,ci)=>{
-      const hdr = data.headers[ci]||'';
-      const n = parseFloat(String(c).replace(/[.,]/g,''));
-      if (!isNaN(n) && n>=1 && n<=10 && /rating|skor/i.test(hdr)) {
-        const col = n>=8?'#16a34a':n>=5?'#a16207':'#dc2626';
-        return `<td><span style="color:${col};font-weight:700">${c}</span></td>`;
+    html += '<tr>'+row.map((c, ci) => {
+      const hdr = headers[ci] || '';
+      const n = parseFloat(String(c).replace(/[.,]/g, ''));
+      if (!isNaN(n) && n >= 1 && n <= 10 && /rating|skor/i.test(hdr)) {
+        const clr = n >= 8 ? '#16a34a' : n >= 5 ? '#a16207' : '#dc2626';
+        return `<td class="num"><span style="color:${clr};font-weight:700">${c}</span></td>`;
       }
       if (/^https?:\/\//.test(c)) return `<td><a class="yt-link" href="${c}" target="_blank">↗ Link</a></td>`;
+      if (isNumCol[ci] && !isNaN(n)) return `<td class="num">${_fmtCell(c)}</td>`;
       return `<td>${_fmtCell(c)}</td>`;
-    }).join('')+'</tr>';
+    }).join('') + '</tr>';
   }
-  html += `</tbody></table></div><div class="row-count">${rows.length} rows</div>`;
+  const totalRows = allRows.length;
+  const showingRows = rows.length;
+  const countTxt = q ? `${showingRows} / ${totalRows} rows` : `${totalRows} rows`;
+  html += `</tbody></table></div><div class="scraper-meta"><span class="scraper-count">${countTxt}</span><span class="scraper-hint">Click header to sort</span></div>`;
   body.innerHTML = html;
+}
+
+function scraperSearch(q) {
+  if (_scraperCurSheet) showSheetByName(_scraperCurSheet);
 }
 
 // ── Dark mode ────────────────────────────────────────────
