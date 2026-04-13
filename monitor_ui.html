@@ -590,7 +590,10 @@ tbody td{padding:10px 16px;font-size:12px;color:var(--txt);}
 
 .scraper-tbl-wrap tbody td {
   padding:8px 14px;font-size:12px;color:var(--txt);
-  max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.scraper-tbl-wrap tbody td.wrap {
+  white-space:normal;word-break:break-word;max-width:320px;
 }
 
 .scraper-tbl-wrap td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; color:var(--txt); }
@@ -1099,6 +1102,8 @@ body.dark .stab.active {
   border-color: #e84545;
   box-shadow: 0 2px 8px rgba(232,69,69,0.35);
 }
+body.dark .stab { color: #c0c0cc; }
+body.dark .stab:hover { background: rgba(255,255,255,0.07); border-color: #e84545; color: #ffffff; }
 
 body.dark .dark-toggle {
   background: rgba(255,255,255,0.04);
@@ -2184,7 +2189,10 @@ function showSheetByName(name) {
       }
       if (/^https?:\/\//.test(c)) return `<td><a class="yt-link" href="${c}" target="_blank">↗ Link</a></td>`;
       if (isNumCol[ci] && !isNaN(n)) return `<td class="num">${_fmtCell(c)}</td>`;
-      return `<td>${_fmtCell(c)}</td>`;
+      const isLong = String(c).length > 60 || /desc|deskripsi|title|judul|nama|caption|note/i.test(hdr);
+      const safeC = _fmtCell(c);
+      const titleAttr = String(c).length > 40 ? ` title="${String(c).replace(/"/g,'&quot;')}"` : '';
+      return isLong ? `<td class="wrap"${titleAttr}>${safeC}</td>` : `<td${titleAttr}>${safeC}</td>`;
     }).join('') + '</tr>';
   }
   const totalRows = allRows.length;
