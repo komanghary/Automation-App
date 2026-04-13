@@ -149,13 +149,17 @@ body {
   position:absolute;
   left:calc(var(--sidebar-w) - 12px);
   top:50%;transform:translateY(-50%);
-  background:var(--txt);color:#fff;
+  background:#1e1b4b;color:#ffffff;
   font-size:11px;font-weight:600;
   padding:5px 10px;border-radius:7px;
   white-space:nowrap;z-index:999;
   pointer-events:none;
   font-family:'Inter',sans-serif;
   box-shadow:var(--sh-md);
+}
+body.dark .ntab[title]:hover::after{
+  background:#0f0f14;color:#ffffff;
+  box-shadow:0 4px 16px rgba(0,0,0,0.6);
 }
 
 .sb-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:6px;}
