@@ -55,6 +55,12 @@ PROCESSES = {
         "label": "PTY Server (Terminal + Claude)",
         "cmd": [sys.executable, os.path.join(BASE_DIR, "pty_server.py")],
         "cwd": BASE_DIR,
+        "port": 8081,           # used for port-based alive detection
+    },
+    "books": {
+        "label": "1% Perday Book Worker",
+        "cmd": [sys.executable, os.path.join(BASE_DIR, "book_worker.py")],
+        "cwd": BASE_DIR,
     },
 }
 
@@ -650,8 +656,23 @@ async def books_upload(file: UploadFile = File(...)):
     with open(pdf_path, "wb") as f:
         f.write(content)
 
+    # Write to queue for book_worker.py visibility, also process in-process for WS progress
+    _enqueue_book_job(pdf_path, upload_id)
     asyncio.create_task(_run_book_processing(pdf_path, upload_id))
     return {"status": "processing_started", "upload_id": upload_id}
+
+
+def _enqueue_book_job(pdf_path: str, upload_id: str):
+    """Add a job to data/book_queue.json for book_worker.py visibility."""
+    queue_file = os.path.join(DATA_DIR, "book_queue.json")
+    try:
+        queue = json.loads(open(queue_file, encoding="utf-8").read()) if os.path.exists(queue_file) else []
+    except Exception:
+        queue = []
+    if not any(j.get("upload_id") == upload_id for j in queue):
+        queue.append({"pdf_path": pdf_path, "upload_id": upload_id})
+        with open(queue_file, "w", encoding="utf-8") as f:
+            json.dump(queue, f, indent=2)
 
 _book_status: Dict[str, str] = {}
 _book_progress: Dict[str, list] = {}  # upload_id -> list of progress messages
@@ -731,7 +752,15 @@ async def ws_book_progress(websocket: WebSocket, upload_id: str):
 # ── Auto-start on launch ──────────────────────────────────────────────────────
 
 # Bots started automatically when web_monitor.py runs
-AUTO_START = ["bot", "watcher", "dashboard", "pty"]
+AUTO_START = ["bot", "watcher", "dashboard", "pty", "books"]
+
+
+def _port_in_use(port: int) -> bool:
+    """Return True if something is already listening on the given port."""
+    import socket as _sock
+    with _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM) as s:
+        s.settimeout(0.3)
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 @app.on_event("startup")
@@ -739,17 +768,25 @@ async def on_startup():
     """On launch: detect already-running bots, then auto-start missing ones."""
     running = _scan_running_pids()
 
+    # Port-based detection for processes with a "port" field (e.g. pty_server)
+    for name, cfg in PROCESSES.items():
+        if name not in running and "port" in cfg:
+            if _port_in_use(cfg["port"]):
+                running[name] = -1   # sentinel: alive but no PID known
+                print(f"[Monitor] Port {cfg['port']} in use — treating {name} as running")
+
     for name in PROCESSES:
         if name in running:
             pid = running[name]
-            orphan = OrphanProcess(pid)
-            _handles[name] = orphan
-            _status[name]  = "running"
-            entry = f"[{datetime.now().strftime('%H:%M:%S')}] --- Detected already running (PID {pid}) ---"
+            if pid > 0:
+                orphan = OrphanProcess(pid)
+                _handles[name] = orphan
+                asyncio.create_task(_wait_proc(name, orphan))
+                asyncio.create_task(_tail_log_file(name))
+            _status[name] = "running"
+            entry = f"[{datetime.now().strftime('%H:%M:%S')}] --- Detected already running{f' (PID {pid})' if pid > 0 else ''} ---"
             _logs[name].append(entry)
-            asyncio.create_task(_wait_proc(name, orphan))
-            asyncio.create_task(_tail_log_file(name))   # stream log file
-            print(f"[Monitor] Detected: {PROCESSES[name]['label']} (PID {pid})")
+            print(f"[Monitor] Detected: {PROCESSES[name]['label']}{f' (PID {pid})' if pid > 0 else ''}")
 
     for name in AUTO_START:
         if _status[name] != "running":

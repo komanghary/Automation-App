@@ -1811,6 +1811,7 @@ const PROC_TITLES = {
   dashboard: "Dashboard Worker",
   trending:  "Trending Scraper",
   pty:       "PTY Server",
+  books:     "1% Perday Worker",
 };
 const PROC_LABELS = {
   bot:       "Discord + YouTube upload",
@@ -1818,9 +1819,10 @@ const PROC_LABELS = {
   dashboard: "Dashboard embed updater",
   trending:  "Multi-platform trending",
   pty:       "Terminal + Claude Code (port 8081)",
+  books:     "PDF → Gemini → TTS podcast processor",
 };
 const BOT_PROCS   = ["bot", "watcher", "dashboard", "trending"];
-const INFRA_PROCS = ["pty"];
+const INFRA_PROCS = ["pty", "books"];
 const PROCS = Object.keys(PROC_LABELS);
 const STATUS_TEXT = {
   running:'Running', stopped:'Stopped',
