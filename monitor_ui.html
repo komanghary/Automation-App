@@ -407,6 +407,17 @@ body.dark .ntab[title]:hover::after{
   border-color:rgba(239,68,68,0.25);color:#991b1b;
   background:rgba(239,68,68,0.06);font-size:11px;padding:4px 8px;
 }
+.pbtn-pid{
+  border-color:rgba(99,102,241,0.25);color:var(--p1);
+  background:rgba(99,102,241,0.06);font-size:11px;padding:4px 8px;
+}
+.pbtn-pid:hover{background:rgba(99,102,241,0.12);}
+#pid-popup{position:fixed;z-index:700;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:16px 20px;min-width:260px;box-shadow:var(--sh-lg);display:none;}
+#pid-popup h4{font-size:13px;font-weight:700;color:var(--txt);margin:0 0 10px 0;}
+.pid-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.pid-row:last-child{border:none;}
+.pid-label{color:var(--txt2);}
+.pid-val{font-family:monospace;font-weight:700;color:var(--txt);background:var(--bg);padding:2px 8px;border-radius:5px;}
 .pbtn-force:hover:not(:disabled){background:rgba(239,68,68,0.12);}
 
 .inst-warn{color:var(--amber);font-weight:600;}
@@ -1807,7 +1818,7 @@ function buildCards() {
         <button class="pbtn pbtn-start"   id="bs-${name}" onclick="apiProc('${name}','start')">▶ Start</button>
         <button class="pbtn pbtn-stop"    id="bx-${name}" onclick="apiProc('${name}','stop')" disabled>■ Stop</button>
         <button class="pbtn pbtn-restart" id="br-${name}" onclick="apiProc('${name}','restart')" title="Restart">↻</button>
-        <button class="pbtn pbtn-force"   id="bf-${name}" onclick="forceKill('${name}')" disabled title="Force Kill (SIGKILL)">☠ Kill</button>
+        <button class="pbtn pbtn-pid"     id="bf-${name}" onclick="showPIDFinder('${name}')" title="PID Finder — lihat PID proses ini">🔍 PID</button>
         <button class="pbtn pbtn-kill"    id="bk-${name}" onclick="killDuplicates('${name}')" style="display:none" title="Kill instance duplikat">⚠ Kill Duplikat</button>
       </div>
       <div id="inst-${name}" style="font-size:11px;color:#94a3b8;padding:4px 0 0 0;display:none">
@@ -1891,7 +1902,6 @@ function applyStatus(name, status) {
   if (badge) { badge.className = `pcard-badge ${status}`; badge.textContent = STATUS_TEXT[status] || status; }
   if (bs) bs.disabled = status === 'running';
   if (bx) bx.disabled = status !== 'running';
-  if (bf) bf.disabled = status !== 'running';
 }
 
 async function pollStatus() {
@@ -2798,6 +2808,71 @@ function ptyKillSession() {
     else shellDisconnect();
   }, 800);
 }
+
+// ── PID Finder ────────────────────────────────────────────
+async function showPIDFinder(name) {
+  const popup = document.getElementById('pid-popup');
+  const btn   = document.getElementById(`bf-${name}`);
+  popup.innerHTML = '<h4>🔍 PID Finder — Loading...</h4>';
+  popup.style.display = 'block';
+
+  // Position near the button
+  const rect = btn.getBoundingClientRect();
+  popup.style.top  = (rect.bottom + 8 + window.scrollY) + 'px';
+  popup.style.left = Math.min(rect.left, window.innerWidth - 280) + 'px';
+
+  try {
+    const data = await (await fetch('/api/process/instances')).json();
+    const info = data[name] || {};
+    const pids = info.pids || [];
+    const tracked = info.tracked_pid;
+    const orphan  = info.orphan_pid;
+
+    let rows = pids.length
+      ? pids.map(p => `
+          <div class="pid-row">
+            <span class="pid-label">${p === tracked ? '✅ Tracked' : p === orphan ? '⚠️ Orphan' : '🔵 PID'}</span>
+            <span class="pid-val">${p}</span>
+          </div>`)
+        .join('')
+      : '<div class="pid-row"><span class="pid-label" style="color:var(--txt3)">Tidak ada proses berjalan</span></div>';
+
+    popup.innerHTML = `
+      <h4>🔍 PID — ${PROC_TITLES[name]}</h4>
+      ${rows}
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        ${pids.length ? `<button class="pbtn pbtn-force" style="font-size:11px" onclick="forceKillFromPID('${name}')">☠ Force Kill</button>` : ''}
+        <button class="pbtn" style="font-size:11px;margin-left:auto" onclick="document.getElementById('pid-popup').style.display='none'">✕ Tutup</button>
+      </div>`;
+  } catch(e) {
+    popup.innerHTML = `<h4>Error</h4><p style="font-size:12px;color:var(--txt3)">${e.message}</p>`;
+  }
+}
+
+async function forceKillFromPID(name) {
+  document.getElementById('pid-popup').style.display = 'none';
+  const pwd = await showPwdModal(`Force Kill: ${PROC_TITLES[name]}`);
+  if (!pwd) return;
+  const res = await fetch(`/api/process/${name}/kill`, {
+    method: 'POST',
+    headers: { 'X-Monitor-Password': pwd },
+  });
+  const data = await res.json();
+  if (data.error) { alert('Error: ' + data.error); return; }
+  appendLog(name, `[${new Date().toTimeString().slice(0,8)}] [Monitor] Force killed.\n`);
+}
+
+// Close PID popup when clicking outside
+document.addEventListener('click', e => {
+  const popup = document.getElementById('pid-popup');
+  if (popup && !popup.contains(e.target) && !e.target.closest('.pbtn-pid')) {
+    popup.style.display = 'none';
+  }
+});
 </script>
+
+<!-- PID Finder Popup -->
+<div id="pid-popup"></div>
+
 </body>
 </html>
