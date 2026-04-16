@@ -1782,12 +1782,14 @@ const PROC_TITLES = {
   watcher:   "Instagram Watcher",
   dashboard: "Dashboard Worker",
   trending:  "Trending Scraper",
+  pty:       "PTY Server",
 };
 const PROC_LABELS = {
   bot:       "Discord + YouTube upload",
   watcher:   "Instagram polling loop",
   dashboard: "Dashboard embed updater",
   trending:  "Multi-platform trending",
+  pty:       "Terminal + Claude Code (port 8081)",
 };
 const PROCS = Object.keys(PROC_LABELS);
 const STATUS_TEXT = {
@@ -2596,7 +2598,7 @@ function shellConnect() {
   sessionStorage.setItem('_sp1', p1); sessionStorage.setItem('_sp2', p2);
   document.getElementById('shell-auth-err').textContent = 'Menghubungkan...';
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  shellWs = new WebSocket(`${proto}//${location.host}/pty`);
+  shellWs = new WebSocket(`${proto}//${location.hostname}:8081/pty`);
   shellWs.onopen = () => shellWs.send(JSON.stringify({p1, p2}));
   shellWs.onmessage = e => {
     const msg = JSON.parse(e.data);
@@ -2695,7 +2697,7 @@ function ccConnect() {
   sessionStorage.setItem('_ccp1', p1); sessionStorage.setItem('_ccp2', p2);
   document.getElementById('cc-auth-err').textContent = 'Menghubungkan...';
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ccWs = new WebSocket(`${proto}//${location.host}/claude-pty`);
+  ccWs = new WebSocket(`${proto}//${location.hostname}:8081/claude-pty`);
   ccWs.onopen = () => ccWs.send(JSON.stringify({p1, p2}));
   ccWs.onmessage = e => {
     const msg = JSON.parse(e.data);
