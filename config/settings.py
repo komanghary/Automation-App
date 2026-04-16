@@ -55,6 +55,9 @@ DASHBOARD_INTERVAL = int(os.getenv("DASHBOARD_INTERVAL", "300"))
 _copyright_ch = os.getenv("COPYRIGHT_CHANNEL_ID", "")
 COPYRIGHT_CHANNEL_ID: int | None = int(_copyright_ch) if _copyright_ch.strip().isdigit() else None
 
+_book_ch = os.getenv("BOOK_CHANNEL_ID", "")
+BOOK_CHANNEL_ID: int | None = int(_book_ch) if _book_ch.strip().isdigit() else None
+
 # ── Watermark assets (all in watermarks/ folder) ─────────────────────────────
 _WM_DIR = os.path.join(BASE_DIR, "watermarks")
 

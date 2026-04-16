@@ -578,6 +578,75 @@ async def scraper_read(path: str):
     return result
 
 
+# ── Books / 1% Perday ─────────────────────────────────────────────────────────
+
+from fastapi.responses import FileResponse
+
+@app.get("/api/books")
+async def books_list():
+    from book_processor import list_books
+    return list_books()
+
+@app.get("/api/books/{book_id}")
+async def book_detail(book_id: str):
+    from book_processor import get_book
+    book = get_book(book_id)
+    if not book:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return book
+
+@app.get("/api/books/{book_id}/cover")
+async def book_cover(book_id: str):
+    from book_processor import get_book_cover_path
+    path = get_book_cover_path(book_id)
+    if not path:
+        return JSONResponse({"error": "no cover"}, status_code=404)
+    return FileResponse(path, media_type="image/jpeg")
+
+@app.get("/api/books/{book_id}/audio/{part}")
+async def book_audio(book_id: str, part: int):
+    from book_processor import get_book_audio_path
+    path = get_book_audio_path(book_id, part)
+    if not path:
+        return JSONResponse({"error": "no audio"}, status_code=404)
+    return FileResponse(path, media_type="audio/mpeg")
+
+@app.get("/api/books/{book_id}/script/{part}")
+async def book_script(book_id: str, part: int):
+    from book_processor import get_book_script
+    script = get_book_script(book_id, part)
+    if script is None:
+        return JSONResponse({"error": "no script"}, status_code=404)
+    return {"script": script}
+
+@app.post("/api/books/process")
+async def books_process(body: dict = Body(...)):
+    """Trigger book processing from a PDF path (called by Discord bot)."""
+    pdf_path = body.get("pdf_path", "")
+    if not os.path.exists(pdf_path):
+        return JSONResponse({"error": "pdf not found"}, status_code=404)
+    from book_processor import process_book
+    asyncio.create_task(_run_book_processing(pdf_path))
+    return {"status": "processing_started"}
+
+_book_status: Dict[str, str] = {}
+
+async def _run_book_processing(pdf_path: str):
+    try:
+        from book_processor import process_book
+        book_id = await process_book(pdf_path)
+        _book_status[pdf_path] = f"done:{book_id}"
+    except Exception as e:
+        _book_status[pdf_path] = f"error:{e}"
+        print(f"[Books] Processing error: {e}")
+
+@app.get("/api/books/status/{encoded_path}")
+async def book_process_status(encoded_path: str):
+    import urllib.parse
+    pdf_path = urllib.parse.unquote(encoded_path)
+    return {"status": _book_status.get(pdf_path, "unknown")}
+
+
 # ── Shell terminal ────────────────────────────────────────────────────────────
 
 @app.websocket("/terminal")

@@ -66,7 +66,7 @@ import discord
 from config import (
     DISCORD_TOKEN, IG_USERNAME,
     WATCHER_CHANNEL_ID, WATERMARK_CHANNEL_ID, WATERMARK_PATH, WM_USERNAME,
-    DASHBOARD_CHANNEL_ID,
+    DASHBOARD_CHANNEL_ID, BOOK_CHANNEL_ID,
     GEMINI_API_KEYS, YT_CLIENT_SECRET, POLL_INTERVAL, WATCHLIST,
     VIDEO_EXTENSIONS, MAX_FILE_MB, DISCORD_UPLOAD_LIMIT, TEMP_DIR,
 )
@@ -245,9 +245,75 @@ async def on_ready():
     bot.loop.create_task(upload_queue_loop())
 
 
+async def _handle_book_upload(message: discord.Message):
+    """Handle PDF attachment in BOOK_CHANNEL_ID → process into 1% Perday."""
+    # Find PDF attachment
+    pdf_att = None
+    for att in message.attachments:
+        if att.filename.lower().endswith(".pdf") or (att.content_type and "pdf" in att.content_type):
+            pdf_att = att
+            break
+
+    if pdf_att is None:
+        return  # ignore non-PDF messages in book channel
+
+    status = await message.reply("📚 **Menerima buku...** Memproses PDF, harap tunggu (±5-10 menit)")
+
+    pdf_path = os.path.join(TEMP_DIR, f"book_{message.id}.pdf")
+    try:
+        await pdf_att.save(pdf_path)
+
+        await status.edit(content="📄 **PDF diterima!** Mengekstrak teks & cover...")
+
+        from book_processor import process_book
+
+        step_msgs = {
+            "📄 Mengekstrak teks dan cover dari PDF...": "📄 Mengekstrak teks & cover...",
+            "🧠 Menganalisis metadata buku dengan Gemini...": "🧠 Menganalisis buku dengan Gemini...",
+            "✂️ Membagi buku menjadi 3 bagian...": "✂️ Membagi buku...",
+            "🎙️": "🎙️ Membuat skrip podcast",
+            "🔊": "🔊 Mengubah ke audio (Edge TTS)",
+            "📖": "📖 Membuat analisis mendalam",
+            "💾 Menyimpan hasil...": "💾 Menyimpan...",
+        }
+
+        async def progress(msg: str):
+            short = next((v for k, v in step_msgs.items() if msg.startswith(k)), msg[:80])
+            try:
+                await status.edit(content=f"⏳ {short}")
+            except Exception:
+                pass
+
+        book_id = await process_book(pdf_path, progress_cb=progress)
+
+        # Get book title from saved metadata
+        import json
+        from pathlib import Path
+        meta_file = Path(__file__).parent / "data" / "books" / book_id / "metadata.json"
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+
+        await status.edit(content=(
+            f"✅ **Selesai!** Buku **{meta['title']}** sudah diproses.\n\n"
+            f"📚 3 Podcast audio + 3 analisis mendalam sudah siap.\n"
+            f"🌐 Lihat di tab **1% Perday** di dashboard."
+        ))
+
+    except Exception as e:
+        await status.edit(content=f"❌ Gagal memproses buku: `{str(e)[:300]}`")
+    finally:
+        if os.path.exists(pdf_path):
+            try: os.remove(pdf_path)
+            except: pass
+
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
+        return
+
+    # ── Book channel: PDF upload → 1% Perday ─────────────────────────────────
+    if BOOK_CHANNEL_ID and message.channel.id == BOOK_CHANNEL_ID:
+        await _handle_book_upload(message)
         return
 
     if not WATERMARK_CHANNEL_ID:

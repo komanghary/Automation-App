@@ -617,6 +617,76 @@ body.dark .scraper-tbl-wrap tbody tr:hover{background:rgba(255,255,255,0.04);}
 body.dark .scraper-tbl-wrap { border-color:rgba(255,255,255,0.05); }
 body.dark .scraper-search { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
 
+/* ─── Books / 1% Perday ─────────────────────────────────── */
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 18px;
+}
+.book-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--trans);
+  box-shadow: var(--sh);
+}
+.book-card:hover { transform: translateY(-3px); box-shadow: var(--sh-md); border-color: var(--p1); }
+.book-card-cover {
+  width: 100%; aspect-ratio: 3/4; object-fit: cover;
+  background: linear-gradient(135deg, var(--p1), var(--p2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; color: #fff;
+}
+.book-card-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.book-card-body { padding: 12px; }
+.book-card-title { font-size: 13px; font-weight: 700; color: var(--txt); margin-bottom: 4px; line-height: 1.3; }
+.book-card-author { font-size: 11px; color: var(--txt2); margin-bottom: 6px; }
+.book-card-desc { font-size: 11px; color: var(--txt3); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.book-card-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.book-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: rgba(99,102,241,0.1); color: var(--p1); border: 1px solid rgba(99,102,241,0.15); }
+.book-badge.audio { background: rgba(16,185,129,0.1); color: var(--green); border-color: rgba(16,185,129,0.15); }
+
+/* Book detail modal */
+.book-detail-header { display: flex; gap: 20px; margin-bottom: 24px; }
+.book-detail-cover { width: 120px; min-width: 120px; border-radius: 10px; overflow: hidden; box-shadow: var(--sh-md); }
+.book-detail-cover img { width: 100%; display: block; }
+.book-detail-cover-ph { width: 120px; height: 160px; background: linear-gradient(135deg, var(--p1), var(--p2)); display: flex; align-items: center; justify-content: center; font-size: 48px; border-radius: 10px; }
+.book-detail-meta h2 { font-size: 20px; font-weight: 800; color: var(--txt); margin-bottom: 4px; }
+.book-detail-meta .author { font-size: 13px; color: var(--txt2); margin-bottom: 8px; }
+.book-detail-meta .desc { font-size: 13px; color: var(--txt2); line-height: 1.6; }
+
+.podcast-section { margin-bottom: 24px; }
+.podcast-section h3 { font-size: 14px; font-weight: 700; color: var(--txt); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.podcast-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.podcast-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px; }
+.podcast-card h4 { font-size: 12px; font-weight: 700; color: var(--txt); margin-bottom: 8px; }
+.podcast-card audio { width: 100%; margin-bottom: 8px; }
+.podcast-card .script-toggle { font-size: 11px; color: var(--p1); cursor: pointer; text-decoration: underline; }
+.podcast-script { font-size: 11px; color: var(--txt2); line-height: 1.6; white-space: pre-wrap; margin-top: 8px; max-height: 200px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xs); padding: 10px; display: none; }
+
+.chapter-section { margin-bottom: 24px; }
+.chapter-section h3 { font-size: 14px; font-weight: 700; color: var(--txt); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.chapter-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 16px; margin-bottom: 12px; }
+.chapter-card h4 { font-size: 13px; font-weight: 700; color: var(--p1); margin-bottom: 8px; }
+.chapter-overview { font-size: 12px; color: var(--txt2); line-height: 1.7; margin-bottom: 12px; }
+.sub-chapter { margin-bottom: 10px; padding-left: 12px; border-left: 2px solid var(--border2); }
+.sub-chapter h5 { font-size: 12px; font-weight: 700; color: var(--txt); margin-bottom: 4px; }
+.sub-chapter p { font-size: 11px; color: var(--txt2); line-height: 1.6; margin-bottom: 4px; }
+.narrative { font-size: 11px; font-style: italic; color: var(--txt3); background: var(--surface); border-left: 3px solid var(--p1); padding: 6px 10px; border-radius: 0 var(--r-xs) var(--r-xs) 0; margin: 4px 0; }
+.key-lessons { margin-top: 10px; }
+.key-lessons h5 { font-size: 11px; font-weight: 700; color: var(--txt); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.key-lesson-item { font-size: 11px; color: var(--txt2); padding: 4px 0; padding-left: 14px; position: relative; }
+.key-lesson-item::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+.memorable-quote { font-size: 13px; font-style: italic; color: var(--txt); background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06)); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: 14px 16px; margin-top: 10px; line-height: 1.6; }
+
+@media (max-width: 768px) {
+  .podcast-cards { grid-template-columns: 1fr; }
+  .book-detail-header { flex-direction: column; }
+  .books-grid { grid-template-columns: repeat(2,1fr); }
+}
+
 /* ─── Channel Cards ──────────────────────────────────────── */
 .ch-grid{
   display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;
@@ -1231,7 +1301,8 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
   .ntab[data-panel="scraper"]::after,
   .ntab[data-panel="shell"]::after,
   .ntab[data-panel="claude"]::after,
-  .ntab[data-panel="procs"]::after {
+  .ntab[data-panel="procs"]::after,
+  .ntab[data-panel="books"]::after {
     position: static !important;
     background: none !important;
     color: currentColor !important;
@@ -1255,6 +1326,8 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
   .ntab[data-panel="claude"]:hover::after  { content: 'Claude' !important; }
   .ntab[data-panel="procs"]::after,
   .ntab[data-panel="procs"]:hover::after   { content: 'Procs' !important; }
+  .ntab[data-panel="books"]::after,
+  .ntab[data-panel="books"]:hover::after   { content: '1% Perday' !important; }
 
   .ntab svg { width: 20px; height: 20px; }
 
@@ -1492,6 +1565,12 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
     </svg>
   </button>
 
+  <button class="ntab" data-panel="books" onclick="switchTab(this)" title="1% Perday">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+    </svg>
+  </button>
+
   <!-- Bottom controls -->
   <div class="sb-bottom">
     <button class="dark-toggle" id="dark-toggle" onclick="toggleDark()" title="Toggle dark mode">☀️</button>
@@ -1561,6 +1640,26 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
       </div>
       <div id="procs-content" class="panel-procs" style="display:none">
         <!-- built by JS -->
+      </div>
+    </div>
+
+    <!-- 1% Perday: Books -->
+    <div class="panel" id="panel-books">
+      <div class="panel-hd">1% Perday — Buku</div>
+      <div id="books-grid" class="books-grid">
+        <div class="empty">
+          <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          <h3>Belum ada buku</h3>
+          <p>Upload PDF buku ke Discord channel yang ditentukan</p>
+        </div>
+      </div>
+
+      <!-- Book Detail Modal -->
+      <div id="book-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);overflow-y:auto;padding:20px;">
+        <div id="book-modal-content" style="max-width:860px;margin:0 auto;background:var(--surface);border-radius:var(--r);padding:28px;position:relative;box-shadow:var(--sh-lg);">
+          <button onclick="closeBookModal()" style="position:absolute;top:16px;right:16px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--txt2);font-size:12px;">✕ Tutup</button>
+          <div id="book-modal-body">Loading...</div>
+        </div>
       </div>
     </div>
 
@@ -1875,7 +1974,7 @@ updateClock();
 // ── Tabs ──────────────────────────────────────────────────
 const PAGE_NAMES = {
   youtube: 'YouTube', scraper: 'Scraper',
-  shell: 'Terminal', claude: 'Claude Code', procs: 'Processes'
+  shell: 'Terminal', claude: 'Claude Code', procs: 'Processes', books: '1% Perday'
 };
 
 function switchTab(el) {
@@ -1895,6 +1994,7 @@ function switchTab(el) {
 
   if (el.dataset.panel === 'youtube') loadYoutube();
   if (el.dataset.panel === 'scraper') loadFileList();
+  if (el.dataset.panel === 'books') loadBooks();
 }
 
 // ── YouTube ───────────────────────────────────────────────
@@ -2209,6 +2309,133 @@ function showSheetByName(name) {
 function scraperSearch(q) {
   if (_scraperCurSheet) showSheetByName(_scraperCurSheet);
 }
+
+// ── 1% Perday Books ───────────────────────────────────────
+
+async function loadBooks() {
+  const grid = document.getElementById('books-grid');
+  grid.innerHTML = '<div class="empty"><h3>Memuat buku...</h3></div>';
+  try {
+    const books = await (await fetch('/api/books')).json();
+    if (!books.length) {
+      grid.innerHTML = '<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg><h3>Belum ada buku</h3><p>Upload PDF buku ke Discord channel yang ditentukan</p></div>';
+      return;
+    }
+    grid.innerHTML = books.map(b => `
+      <div class="book-card" onclick="openBook('${b.id}')">
+        <div class="book-card-cover">
+          ${b.cover ? `<img src="${b.cover}" alt="${b.title}" loading="lazy" onerror="this.parentElement.innerHTML='📚'">` : '📚'}
+        </div>
+        <div class="book-card-body">
+          <div class="book-card-title">${b.title}</div>
+          <div class="book-card-author">${b.author}</div>
+          <div class="book-card-desc">${b.description}</div>
+          <div class="book-card-badges">
+            ${b.genre ? `<span class="book-badge">${b.genre}</span>` : ''}
+            ${b.has_audio ? '<span class="book-badge audio">🎙️ Audio</span>' : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = `<div class="empty"><h3>Gagal memuat buku</h3><p>${e.message}</p></div>`;
+  }
+}
+
+async function openBook(bookId) {
+  const modal = document.getElementById('book-modal');
+  const body = document.getElementById('book-modal-body');
+  modal.style.display = 'block';
+  body.innerHTML = '<div class="empty"><h3>Memuat detail buku...</h3></div>';
+
+  try {
+    const book = await (await fetch(`/api/books/${bookId}`)).json();
+
+    const podcastCards = (book.podcasts || []).map(p => `
+      <div class="podcast-card">
+        <h4>🎙️ ${p.label}</h4>
+        ${p.has_audio
+          ? `<audio controls preload="none" src="/api/books/${bookId}/audio/${p.part}"></audio>`
+          : '<p style="font-size:11px;color:var(--txt3)">Audio tidak tersedia</p>'
+        }
+        <span class="script-toggle" onclick="toggleScript(this)">Lihat skrip podcast ↓</span>
+        <div class="podcast-script" data-bid="${bookId}" data-part="${p.part}"></div>
+      </div>
+    `).join('');
+
+    const chapterCards = (book.chapters || []).map(ch => `
+      <div class="chapter-card">
+        <h4>${ch.label}</h4>
+        <p class="chapter-overview">${ch.overview || ''}</p>
+        ${(ch.sub_chapters || []).map(sub => `
+          <div class="sub-chapter">
+            <h5>${sub.title}</h5>
+            <p>${sub.content}</p>
+            ${(sub.key_narratives || []).map(n => `<div class="narrative">"${n}"</div>`).join('')}
+          </div>
+        `).join('')}
+        ${ch.key_lessons?.length ? `
+          <div class="key-lessons">
+            <h5>💡 Pelajaran Utama</h5>
+            ${ch.key_lessons.map(l => `<div class="key-lesson-item">${l}</div>`).join('')}
+          </div>` : ''}
+        ${ch.memorable_quote ? `<div class="memorable-quote">"${ch.memorable_quote}"</div>` : ''}
+      </div>
+    `).join('');
+
+    body.innerHTML = `
+      <div class="book-detail-header">
+        ${book.cover_file
+          ? `<div class="book-detail-cover"><img src="/api/books/${bookId}/cover" alt="${book.title}"></div>`
+          : `<div class="book-detail-cover-ph">📚</div>`
+        }
+        <div class="book-detail-meta">
+          <h2>${book.title}</h2>
+          <div class="author">✍️ ${book.author} · ${book.genre || ''}</div>
+          <div class="desc">${book.description}</div>
+        </div>
+      </div>
+      <div class="podcast-section">
+        <h3>🎙️ Podcast (3 Bagian)</h3>
+        <div class="podcast-cards">${podcastCards}</div>
+      </div>
+      <div class="chapter-section">
+        <h3>📖 Pembahasan Mendalam</h3>
+        ${chapterCards}
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div class="empty"><h3>Gagal memuat detail</h3><p>${e.message}</p></div>`;
+  }
+}
+
+async function toggleScript(el) {
+  const box = el.nextElementSibling;
+  if (box.style.display === 'block') {
+    box.style.display = 'none'; el.textContent = 'Lihat skrip podcast ↓'; return;
+  }
+  el.textContent = 'Sembunyikan skrip ↑';
+  box.style.display = 'block';
+  if (!box.textContent.trim()) {
+    const bid = box.dataset.bid, part = box.dataset.part;
+    try {
+      const { script } = await (await fetch(`/api/books/${bid}/script/${part}`)).json();
+      box.textContent = script || '(tidak ada skrip)';
+    } catch { box.textContent = 'Gagal memuat skrip.'; }
+  }
+}
+
+function closeBookModal() {
+  document.getElementById('book-modal').style.display = 'none';
+  // Stop all audio
+  document.querySelectorAll('#book-modal audio').forEach(a => a.pause());
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', e => {
+  const modal = document.getElementById('book-modal');
+  if (e.target === modal) closeBookModal();
+});
 
 // ── Dark mode ────────────────────────────────────────────
 function _syncDarkToggles(dark) {
