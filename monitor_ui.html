@@ -287,9 +287,35 @@ body.dark .ntab[title]:hover::after{
 .panel-procs.active{
   display:grid !important;
   grid-template-columns:1fr 1fr;
-  grid-template-rows:1fr 1fr;
+  grid-template-rows:auto;
   gap:16px;padding:18px 24px;
-  overflow:hidden;flex:1;min-height:0;
+  overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;
+  align-content:start;
+}
+.proc-section-divider{
+  grid-column:1/-1;
+  display:flex;align-items:center;gap:10px;
+  font-size:11px;font-weight:700;letter-spacing:0.06em;
+  text-transform:uppercase;color:var(--txt3);
+  margin:4px 0 -4px 0;
+}
+.proc-section-divider::before,.proc-section-divider::after{
+  content:'';flex:1;height:1px;background:var(--border2);
+}
+.proc-card.full-width{
+  grid-column:1/-1;
+  flex-direction:row;
+  align-items:stretch;
+  min-height:160px;
+}
+.proc-card.full-width .pcard-left{
+  min-width:220px;max-width:260px;
+  border-right:1px solid var(--border);
+  padding:14px 18px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.proc-card.full-width .pcard-log{
+  flex:1;border-radius:0;
 }
 
 /* ─── Process Cards ──────────────────────────────────────── */
@@ -1791,6 +1817,8 @@ const PROC_LABELS = {
   trending:  "Multi-platform trending",
   pty:       "Terminal + Claude Code (port 8081)",
 };
+const BOT_PROCS   = ["bot", "watcher", "dashboard", "trending"];
+const INFRA_PROCS = ["pty"];
 const PROCS = Object.keys(PROC_LABELS);
 const STATUS_TEXT = {
   running:'Running', stopped:'Stopped',
@@ -1800,13 +1828,37 @@ const autoScroll = {};
 const wsMap = {};
 
 // ── Build cards ───────────────────────────────────────────
-function buildCards() {
-  const grid = document.getElementById('procs-content');
-  for (const name of PROCS) {
-    autoScroll[name] = true;
-    const card = document.createElement('div');
-    card.className = 'proc-card';
-    card.id = `card-${name}`;
+function _makeCard(name, fullWidth = false) {
+  const card = document.createElement('div');
+  card.className = fullWidth ? 'proc-card full-width' : 'proc-card';
+  card.id = `card-${name}`;
+  const btns = `
+    <button class="pbtn pbtn-start"   id="bs-${name}" onclick="apiProc('${name}','start')">▶ Start</button>
+    <button class="pbtn pbtn-stop"    id="bx-${name}" onclick="apiProc('${name}','stop')" disabled>■ Stop</button>
+    <button class="pbtn pbtn-restart" id="br-${name}" onclick="apiProc('${name}','restart')" title="Restart">↻</button>
+    <button class="pbtn pbtn-pid"     id="bf-${name}" onclick="showPIDFinder('${name}')" title="PID Finder">🔍 PID</button>
+    <button class="pbtn pbtn-kill"    id="bk-${name}" onclick="killDuplicates('${name}')" style="display:none" title="Kill duplikat">⚠ Kill Duplikat</button>`;
+  const inst = `
+    <div id="inst-${name}" style="font-size:11px;color:#94a3b8;padding:4px 0 0 0;display:none">
+      <span id="inst-count-${name}"></span>
+      <button class="pbtn pbtn-kill" id="bo-${name}" onclick="killOrphan('${name}')" style="display:none;margin-left:6px;font-size:10px;padding:2px 6px">☠ Kill Orphan</button>
+    </div>`;
+  if (fullWidth) {
+    card.innerHTML = `
+      <div class="pcard-left">
+        <div class="pcard-head" style="padding:0;border:none;background:none">
+          <div class="pdot stopped" id="dot-${name}"></div>
+          <div>
+            <div class="pcard-name">${PROC_TITLES[name]}</div>
+            <div class="pcard-desc">${PROC_LABELS[name]}</div>
+          </div>
+          <div class="pcard-badge stopped" id="badge-${name}">Stopped</div>
+        </div>
+        <div class="pcard-btns" style="flex-wrap:wrap">${btns}</div>
+        ${inst}
+      </div>
+      <div class="pcard-log" id="log-${name}" onscroll="onScroll('${name}')"></div>`;
+  } else {
     card.innerHTML = `
       <div class="pcard-head">
         <div class="pdot stopped" id="dot-${name}"></div>
@@ -1816,19 +1868,31 @@ function buildCards() {
         </div>
         <div class="pcard-badge stopped" id="badge-${name}">Stopped</div>
       </div>
-      <div class="pcard-btns">
-        <button class="pbtn pbtn-start"   id="bs-${name}" onclick="apiProc('${name}','start')">▶ Start</button>
-        <button class="pbtn pbtn-stop"    id="bx-${name}" onclick="apiProc('${name}','stop')" disabled>■ Stop</button>
-        <button class="pbtn pbtn-restart" id="br-${name}" onclick="apiProc('${name}','restart')" title="Restart">↻</button>
-        <button class="pbtn pbtn-pid"     id="bf-${name}" onclick="showPIDFinder('${name}')" title="PID Finder — lihat PID proses ini">🔍 PID</button>
-        <button class="pbtn pbtn-kill"    id="bk-${name}" onclick="killDuplicates('${name}')" style="display:none" title="Kill instance duplikat">⚠ Kill Duplikat</button>
-      </div>
-      <div id="inst-${name}" style="font-size:11px;color:#94a3b8;padding:4px 0 0 0;display:none">
-        <span id="inst-count-${name}"></span>
-        <button class="pbtn pbtn-kill" id="bo-${name}" onclick="killOrphan('${name}')" style="display:none;margin-left:6px;font-size:10px;padding:2px 6px" title="Kill orphan process">☠ Kill Orphan</button>
-      </div>
+      <div class="pcard-btns">${btns}</div>
+      ${inst}
       <div class="pcard-log" id="log-${name}" onscroll="onScroll('${name}')"></div>`;
-    grid.appendChild(card);
+  }
+  return card;
+}
+
+function _makeDivider(label) {
+  const div = document.createElement('div');
+  div.className = 'proc-section-divider';
+  div.textContent = label;
+  return div;
+}
+
+function buildCards() {
+  const grid = document.getElementById('procs-content');
+  grid.appendChild(_makeDivider('🤖 Bots'));
+  for (const name of BOT_PROCS) {
+    autoScroll[name] = true;
+    grid.appendChild(_makeCard(name, false));
+  }
+  grid.appendChild(_makeDivider('🖥️ Infrastructure'));
+  for (const name of INFRA_PROCS) {
+    autoScroll[name] = true;
+    grid.appendChild(_makeCard(name, true));
   }
 }
 
