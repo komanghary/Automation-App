@@ -124,12 +124,48 @@ LOCK_FILES: Dict[str, str] = {
 }
 
 
-def _scan_running_pids() -> Dict[str, int]:
-    """Find already-running bot processes. Lock files for tracked bots, wmic for others."""
+def _get_python_pids_by_script(script_name: str) -> list:
+    """Return all PIDs of python.exe processes running a given script (PowerShell-based)."""
     import subprocess as _sp
+    try:
+        out = _sp.check_output(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-WmiObject Win32_Process -Filter \"name='python.exe'\" | "
+             "Select-Object ProcessId,CommandLine | ConvertTo-Json"],
+            stderr=_sp.DEVNULL, text=True, timeout=8,
+        )
+        data = json.loads(out.strip())
+        if isinstance(data, dict):
+            data = [data]
+        return [
+            int(p["ProcessId"]) for p in data
+            if script_name in (p.get("CommandLine") or "")
+            and _pid_alive(int(p["ProcessId"]))
+        ]
+    except Exception:
+        return []
+
+
+def _get_pid_listening_on_port(port: int) -> Optional[int]:
+    """Return PID listening on the given TCP port via netstat."""
+    import subprocess as _sp
+    try:
+        out = _sp.check_output(["netstat", "-ano"], stderr=_sp.DEVNULL, text=True, timeout=5)
+        for line in out.splitlines():
+            if f":{port} " in line and "LISTENING" in line:
+                pid = int(line.strip().split()[-1])
+                if _pid_alive(pid):
+                    return pid
+    except Exception:
+        pass
+    return None
+
+
+def _scan_running_pids() -> Dict[str, int]:
+    """Find already-running processes via lock files, netstat, and PowerShell."""
     found: Dict[str, int] = {}
 
-    # Lock-file based detection (bot, watcher, dashboard)
+    # 1. Lock-file based detection — also cleans stale files
     for name, lock_path in LOCK_FILES.items():
         if not os.path.exists(lock_path):
             continue
@@ -138,30 +174,40 @@ def _scan_running_pids() -> Dict[str, int]:
                 pid = int(f.read().strip())
             if _pid_alive(pid):
                 found[name] = pid
+            else:
+                os.remove(lock_path)   # clean stale lock
         except Exception:
             pass
 
-    # wmic-based detection for processes without lock files (trending)
-    wmic_targets = {k: os.path.basename(v["cmd"][1]) for k, v in PROCESSES.items()
-                    if k not in LOCK_FILES}
-    if wmic_targets:
+    # 2. Port-based detection (pty_server on 8081)
+    for name, cfg in PROCESSES.items():
+        if name not in found and "port" in cfg:
+            pid = _get_pid_listening_on_port(cfg["port"])
+            if pid:
+                found[name] = pid
+
+    # 3. PowerShell-based detection for remaining processes
+    ps_targets = {k: os.path.basename(v["cmd"][1]) for k, v in PROCESSES.items()
+                  if k not in found and "port" not in v}
+    if ps_targets:
         try:
+            import subprocess as _sp
             out = _sp.check_output(
-                ["wmic", "process", "where", 'name="python.exe"',
-                 "get", "ProcessId,CommandLine"],
-                stderr=_sp.DEVNULL, text=True, timeout=5,
+                ["powershell", "-NoProfile", "-Command",
+                 "Get-WmiObject Win32_Process -Filter \"name='python.exe'\" | "
+                 "Select-Object ProcessId,CommandLine | ConvertTo-Json"],
+                stderr=_sp.DEVNULL, text=True, timeout=8,
             )
-            for name, script in wmic_targets.items():
-                if name in found:
-                    continue
-                for line in out.splitlines():
-                    if script in line:
-                        parts = line.strip().split()
-                        try:
-                            found[name] = int(parts[-1])
+            data = json.loads(out.strip())
+            if isinstance(data, dict):
+                data = [data]
+            for name, script in ps_targets.items():
+                for p in data:
+                    if script in (p.get("CommandLine") or ""):
+                        pid = int(p["ProcessId"])
+                        if _pid_alive(pid):
+                            found[name] = pid
                             break
-                        except (ValueError, IndexError):
-                            pass
         except Exception:
             pass
 
@@ -363,49 +409,62 @@ async def api_restart(name: str):
 
 @app.get("/api/process/instances")
 async def api_instances():
-    """Return actual OS-level instance count per process (wmic + lock files)."""
+    """Return actual OS-level instance count per process (PowerShell + lock files + netstat)."""
     import subprocess as _sp
-    # Single wmic call for all processes
-    wmic_pids: Dict[str, list] = {k: [] for k in PROCESSES}
+
+    # Single PowerShell call to get all Python process info
+    ps_pids: Dict[str, list] = {k: [] for k in PROCESSES}
     try:
         out = _sp.check_output(
-            ["wmic", "process", "where", 'name="python.exe"',
-             "get", "ProcessId,CommandLine"],
-            stderr=_sp.DEVNULL, text=True, timeout=5,
+            ["powershell", "-NoProfile", "-Command",
+             "Get-WmiObject Win32_Process -Filter \"name='python.exe'\" | "
+             "Select-Object ProcessId,CommandLine | ConvertTo-Json"],
+            stderr=_sp.DEVNULL, text=True, timeout=8,
         )
+        data = json.loads(out.strip())
+        if isinstance(data, dict):
+            data = [data]
         for name, cfg in PROCESSES.items():
             script = os.path.basename(cfg["cmd"][1])
-            for line in out.splitlines():
-                if script in line:
-                    parts = line.strip().split()
-                    try:
-                        wmic_pids[name].append(int(parts[-1]))
-                    except (ValueError, IndexError):
-                        pass
+            for p in data:
+                if script in (p.get("CommandLine") or ""):
+                    pid = int(p["ProcessId"])
+                    if _pid_alive(pid) and pid not in ps_pids[name]:
+                        ps_pids[name].append(pid)
     except Exception:
         pass
 
     result = {}
     for name in PROCESSES:
-        pids = wmic_pids[name]
-        # Also check lock file for orphan PID (more reliable than wmic)
+        pids = list(ps_pids[name])
+
+        # Add lock-file PID if not already in list
         lock_path = LOCK_FILES.get(name)
-        orphan_pid = None
         if lock_path and os.path.exists(lock_path):
             try:
                 with open(lock_path) as f:
                     lp = int(f.read().strip())
                 if _pid_alive(lp) and lp not in pids:
                     pids.append(lp)
-                    orphan_pid = lp
             except Exception:
                 pass
-        tracked_pid = _handles[name].pid if _handles.get(name) else None
+
+        # Add port-based PID if not already in list
+        cfg_port = PROCESSES[name].get("port")
+        if cfg_port:
+            port_pid = _get_pid_listening_on_port(cfg_port)
+            if port_pid and port_pid not in pids:
+                pids.append(port_pid)
+
+        # Tracked PID from web_monitor handle (exclude sentinel -1)
+        raw_tracked = _handles[name].pid if _handles.get(name) else None
+        tracked_pid = raw_tracked if (raw_tracked and raw_tracked > 0) else (pids[0] if pids else None)
+
         result[name] = {
             "count": len(pids),
             "pids": pids,
             "tracked_pid": tracked_pid,
-            "orphan_pid": orphan_pid or (pids[0] if pids and pids[0] != tracked_pid else None),
+            "orphan_pid": next((p for p in pids if p != tracked_pid), None),
         }
     return result
 
@@ -768,25 +827,19 @@ async def on_startup():
     """On launch: detect already-running bots, then auto-start missing ones."""
     running = _scan_running_pids()
 
-    # Port-based detection for processes with a "port" field (e.g. pty_server)
-    for name, cfg in PROCESSES.items():
-        if name not in running and "port" in cfg:
-            if _port_in_use(cfg["port"]):
-                running[name] = -1   # sentinel: alive but no PID known
-                print(f"[Monitor] Port {cfg['port']} in use — treating {name} as running")
+    # Port-based detection already handled in _scan_running_pids() via _get_pid_listening_on_port
 
     for name in PROCESSES:
         if name in running:
             pid = running[name]
-            if pid > 0:
-                orphan = OrphanProcess(pid)
-                _handles[name] = orphan
-                asyncio.create_task(_wait_proc(name, orphan))
-                asyncio.create_task(_tail_log_file(name))
-            _status[name] = "running"
-            entry = f"[{datetime.now().strftime('%H:%M:%S')}] --- Detected already running{f' (PID {pid})' if pid > 0 else ''} ---"
+            orphan = OrphanProcess(pid)
+            _handles[name] = orphan
+            _status[name]  = "running"
+            entry = f"[{datetime.now().strftime('%H:%M:%S')}] --- Detected already running (PID {pid}) ---"
             _logs[name].append(entry)
-            print(f"[Monitor] Detected: {PROCESSES[name]['label']}{f' (PID {pid})' if pid > 0 else ''}")
+            asyncio.create_task(_wait_proc(name, orphan))
+            asyncio.create_task(_tail_log_file(name))
+            print(f"[Monitor] Detected: {PROCESSES[name]['label']} (PID {pid})")
 
     for name in AUTO_START:
         if _status[name] != "running":
