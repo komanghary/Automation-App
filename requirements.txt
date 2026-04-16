@@ -14,3 +14,4 @@ fastapi
 uvicorn[standard]
 PyMuPDF
 edge-tts
+python-multipart
