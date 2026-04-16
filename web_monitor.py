@@ -12,7 +12,7 @@ from collections import deque
 from datetime import datetime
 from typing import Dict, Optional, Set
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, Body, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 from dotenv import load_dotenv
@@ -625,26 +625,102 @@ async def books_process(body: dict = Body(...)):
     pdf_path = body.get("pdf_path", "")
     if not os.path.exists(pdf_path):
         return JSONResponse({"error": "pdf not found"}, status_code=404)
-    from book_processor import process_book
-    asyncio.create_task(_run_book_processing(pdf_path))
-    return {"status": "processing_started"}
+    upload_id = f"discord_{os.path.basename(pdf_path)}"
+    asyncio.create_task(_run_book_processing(pdf_path, upload_id))
+    return {"status": "processing_started", "upload_id": upload_id}
+
+@app.post("/api/books/upload")
+async def books_upload(file: UploadFile = File(...)):
+    """Accept PDF upload from dashboard and process it."""
+    import uuid
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        return JSONResponse({"error": "Only PDF files are supported"}, status_code=400)
+
+    upload_id = str(uuid.uuid4())
+    temp_dir = os.path.join(DATA_DIR, "tmp_uploads")
+    os.makedirs(temp_dir, exist_ok=True)
+    pdf_path = os.path.join(temp_dir, f"{upload_id}.pdf")
+
+    content = await file.read()
+    with open(pdf_path, "wb") as f:
+        f.write(content)
+
+    asyncio.create_task(_run_book_processing(pdf_path, upload_id))
+    return {"status": "processing_started", "upload_id": upload_id}
 
 _book_status: Dict[str, str] = {}
+_book_progress: Dict[str, list] = {}  # upload_id -> list of progress messages
+_book_progress_subs: Dict[str, Set[WebSocket]] = {}  # upload_id -> set of websockets
 
-async def _run_book_processing(pdf_path: str):
+async def _broadcast_progress(upload_id: str, msg: str):
+    _book_progress.setdefault(upload_id, []).append(msg)
+    subs = _book_progress_subs.get(upload_id, set())
+    dead = set()
+    for ws in subs:
+        try:
+            await ws.send_text(json.dumps({"type": "progress", "msg": msg}))
+        except Exception:
+            dead.add(ws)
+    for ws in dead:
+        subs.discard(ws)
+
+async def _run_book_processing(pdf_path: str, upload_id: str):
+    async def progress_cb(msg: str):
+        await _broadcast_progress(upload_id, msg)
+
     try:
         from book_processor import process_book
-        book_id = await process_book(pdf_path)
-        _book_status[pdf_path] = f"done:{book_id}"
+        book_id = await process_book(pdf_path, progress_cb=progress_cb)
+        _book_status[upload_id] = f"done:{book_id}"
+        await _broadcast_progress(upload_id, f"✅ Selesai! book_id={book_id}")
+        await _broadcast_book_done(upload_id, book_id)
     except Exception as e:
-        _book_status[pdf_path] = f"error:{e}"
+        _book_status[upload_id] = f"error:{e}"
+        await _broadcast_progress(upload_id, f"❌ Error: {e}")
         print(f"[Books] Processing error: {e}")
 
-@app.get("/api/books/status/{encoded_path}")
-async def book_process_status(encoded_path: str):
-    import urllib.parse
-    pdf_path = urllib.parse.unquote(encoded_path)
-    return {"status": _book_status.get(pdf_path, "unknown")}
+async def _broadcast_book_done(upload_id: str, book_id: str):
+    subs = _book_progress_subs.get(upload_id, set())
+    for ws in list(subs):
+        try:
+            await ws.send_text(json.dumps({"type": "done", "book_id": book_id}))
+        except Exception:
+            pass
+
+@app.get("/api/books/status/{upload_id}")
+async def book_process_status(upload_id: str):
+    return {"status": _book_status.get(upload_id, "processing"),
+            "log": _book_progress.get(upload_id, [])}
+
+@app.websocket("/ws/books/progress/{upload_id}")
+async def ws_book_progress(websocket: WebSocket, upload_id: str):
+    await websocket.accept()
+    _book_progress_subs.setdefault(upload_id, set()).add(websocket)
+    # Send existing log if any
+    for msg in _book_progress.get(upload_id, []):
+        try:
+            await websocket.send_text(json.dumps({"type": "progress", "msg": msg}))
+        except Exception:
+            break
+    # Check if already done
+    status = _book_status.get(upload_id, "")
+    if status.startswith("done:"):
+        book_id = status.split(":", 1)[1]
+        try:
+            await websocket.send_text(json.dumps({"type": "done", "book_id": book_id}))
+        except Exception:
+            pass
+    try:
+        while True:
+            await asyncio.sleep(30)
+            try:
+                await websocket.send_text(json.dumps({"type": "ping"}))
+            except Exception:
+                break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _book_progress_subs.get(upload_id, set()).discard(websocket)
 
 
 # ── Shell terminal ────────────────────────────────────────────────────────────

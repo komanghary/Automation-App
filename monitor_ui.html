@@ -1645,12 +1645,30 @@ body.dark .hdr-time { border-left-color: rgba(255,255,255,0.06); }
 
     <!-- 1% Perday: Books -->
     <div class="panel" id="panel-books">
-      <div class="panel-hd">1% Perday — Buku</div>
+      <div class="panel-hd" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>1% Perday — Buku</span>
+        <label id="book-upload-btn" style="cursor:pointer;background:var(--p1);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Upload PDF
+          <input type="file" accept=".pdf" style="display:none" onchange="uploadBookPDF(this)">
+        </label>
+      </div>
       <div id="books-grid" class="books-grid">
         <div class="empty">
           <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
           <h3>Belum ada buku</h3>
-          <p>Upload PDF buku ke Discord channel yang ditentukan</p>
+          <p>Klik <strong>Upload PDF</strong> untuk memproses buku baru</p>
+        </div>
+      </div>
+
+      <!-- Upload Progress Overlay -->
+      <div id="book-upload-overlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;">
+        <div style="background:var(--surface);border-radius:var(--r);padding:28px;max-width:500px;width:90%;box-shadow:var(--sh-lg);">
+          <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:16px;">📚 Memproses Buku...</div>
+          <div id="book-upload-progress-bar" style="height:6px;background:var(--border2);border-radius:3px;margin-bottom:16px;overflow:hidden;">
+            <div id="book-upload-progress-fill" style="height:100%;width:0%;background:var(--p1);border-radius:3px;transition:width 0.4s;"></div>
+          </div>
+          <div id="book-upload-log" style="font-size:12px;color:var(--txt2);max-height:200px;overflow-y:auto;font-family:monospace;line-height:1.6;background:var(--bg);border-radius:8px;padding:12px;"></div>
         </div>
       </div>
 
@@ -2318,7 +2336,7 @@ async function loadBooks() {
   try {
     const books = await (await fetch('/api/books')).json();
     if (!books.length) {
-      grid.innerHTML = '<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg><h3>Belum ada buku</h3><p>Upload PDF buku ke Discord channel yang ditentukan</p></div>';
+      grid.innerHTML = '<div class="empty"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg><h3>Belum ada buku</h3><p>Klik <strong>Upload PDF</strong> untuk memproses buku baru</p></div>';
       return;
     }
     grid.innerHTML = books.map(b => `
@@ -2422,6 +2440,67 @@ async function toggleScript(el) {
       const { script } = await (await fetch(`/api/books/${bid}/script/${part}`)).json();
       box.textContent = script || '(tidak ada skrip)';
     } catch { box.textContent = 'Gagal memuat skrip.'; }
+  }
+}
+
+async function uploadBookPDF(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';  // reset so same file can be re-selected
+
+  const overlay = document.getElementById('book-upload-overlay');
+  const logEl   = document.getElementById('book-upload-log');
+  const fill    = document.getElementById('book-upload-progress-fill');
+  overlay.style.display = 'flex';
+  logEl.innerHTML = '';
+  fill.style.width = '5%';
+
+  function appendLog(msg) {
+    logEl.innerHTML += msg + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  try {
+    appendLog('📤 Mengunggah PDF...');
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/books/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload gagal');
+
+    const uploadId = data.upload_id;
+    appendLog('✅ Upload berhasil. Memulai proses Gemini + TTS...');
+    fill.style.width = '15%';
+
+    // Connect WebSocket for progress
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host}/ws/books/progress/${uploadId}`);
+    let step = 15;
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'progress') {
+        appendLog(msg.msg);
+        step = Math.min(step + 5, 90);
+        fill.style.width = step + '%';
+      } else if (msg.type === 'done') {
+        fill.style.width = '100%';
+        appendLog('🎉 Buku berhasil diproses!');
+        ws.close();
+        setTimeout(() => {
+          overlay.style.display = 'none';
+          loadBooks();
+        }, 1800);
+      }
+    };
+
+    ws.onerror = () => appendLog('⚠️ Koneksi progress terputus, proses tetap berjalan di background.');
+    ws.onclose = () => {};
+
+  } catch(e) {
+    appendLog('❌ Error: ' + e.message);
+    fill.style.width = '0%';
+    setTimeout(() => { overlay.style.display = 'none'; }, 3000);
   }
 }
 

@@ -12,3 +12,5 @@ openpyxl
 beautifulsoup4
 fastapi
 uvicorn[standard]
+PyMuPDF
+edge-tts
