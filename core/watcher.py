@@ -296,11 +296,17 @@ async def ig_watcher_loop():
     _save_seen(watch_groups)
     print(f"[Watcher] {total_marked} pesan di-skip, hanya ambil yang baru setelah bot nyala\n")
 
-    # Polling loop
+    # Polling loop — random jitter agar tidak terlihat seperti bot berpola
+    import random as _random
     while not bot.is_closed():
         for wg in watch_groups:
             try:
                 await poll_new_videos(wg)
             except Exception as e:
                 print(f"[Watcher] Error polling '{wg['name']}': {e}")
-        await asyncio.sleep(POLL_INTERVAL)
+            # Jeda acak antar grup (2–5 detik)
+            if len(watch_groups) > 1:
+                await asyncio.sleep(_random.uniform(2, 5))
+        # Jitter ±20% dari POLL_INTERVAL
+        jitter = _random.uniform(0.8, 1.2)
+        await asyncio.sleep(POLL_INTERVAL * jitter)

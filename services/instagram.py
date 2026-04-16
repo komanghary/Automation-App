@@ -4,6 +4,7 @@ Instagram service — login, group threads, video extraction, download.
 
 import os
 import re
+import random
 import subprocess
 import requests
 
@@ -25,15 +26,87 @@ except Exception:
 from config import BASE_DIR, FFMPEG, TEMP_DIR
 
 
-# ── Login ─────────────────────────────────────────────────────────────────────
+# ── Anti-detection helpers ─────────────────────────────────────────────────────
+
+# Pool of realistic Android device fingerprints
+_DEVICE_POOL = [
+    {
+        "manufacturer": "Samsung",
+        "model": "SM-G991B",
+        "android_version": "13",
+        "android_release": "13",
+        "app_version": "319.0.0.34.109",
+    },
+    {
+        "manufacturer": "Samsung",
+        "model": "SM-S908B",
+        "android_version": "13",
+        "android_release": "13",
+        "app_version": "317.0.0.24.109",
+    },
+    {
+        "manufacturer": "Xiaomi",
+        "model": "2201116SG",
+        "android_version": "12",
+        "android_release": "12",
+        "app_version": "315.0.0.24.109",
+    },
+    {
+        "manufacturer": "OnePlus",
+        "model": "CPH2423",
+        "android_version": "13",
+        "android_release": "13",
+        "app_version": "319.0.0.34.109",
+    },
+]
+
+_DEVICE_FILE = os.path.join(BASE_DIR, "data", "ig_device.json")
+
+
+def _load_or_create_device() -> dict:
+    """Load persisted device fingerprint, or create a new random one."""
+    import json
+    if os.path.exists(_DEVICE_FILE):
+        try:
+            with open(_DEVICE_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    device = random.choice(_DEVICE_POOL).copy()
+    os.makedirs(os.path.dirname(_DEVICE_FILE), exist_ok=True)
+    with open(_DEVICE_FILE, "w", encoding="utf-8") as f:
+        json.dump(device, f, indent=2)
+    print(f"[IG] Device fingerprint baru: {device['manufacturer']} {device['model']}")
+    return device
+
 
 def _make_ig_client() -> IGClient:
     cl = IGClient()
-    cl.delay_range = [1, 3]
-    # Handle bloks-type challenge (step_name=STEP_NAME) — accept and move on
+    # Realistic human-like delays (3–8 detik antar request)
+    cl.delay_range = [3, 8]
+
+    # Set device fingerprint yang konsisten
+    device = _load_or_create_device()
+    try:
+        cl.set_device({
+            "app_version":      device["app_version"],
+            "android_version":  int(device["android_version"]),
+            "android_release":  device["android_release"],
+            "dpi":              "420dpi",
+            "resolution":       "1080x2340",
+            "manufacturer":     device["manufacturer"],
+            "device":           device["model"],
+            "model":            device["model"],
+            "cpu":              "qcom",
+            "version_code":     "314665256",
+        })
+    except Exception:
+        pass
+
+    # Challenge handler (tidak bisa auto-resolve bloks challenge)
     def _challenge_code_handler(username, choice):
-        print(f"[IG] Challenge kode diminta untuk {username}, pilihan={choice}")
-        return input(f"[IG] Masukkan kode verifikasi IG untuk {username}: ").strip()
+        print(f"[IG] Kode verifikasi diperlukan untuk {username} (choice={choice})")
+        return ""  # return kosong — tidak bisa input di server
     cl.challenge_code_handler = _challenge_code_handler
     return cl
 
@@ -41,51 +114,63 @@ def _make_ig_client() -> IGClient:
 def ig_login(username: str, password: str) -> IGClient:
     session_file = os.path.join(BASE_DIR, f"{username}_session.json")
 
-    # Try loading existing session
+    # Coba load sesi yang ada (hindari login ulang = trigger challenge)
     if os.path.exists(session_file):
         print("[IG] Memuat sesi tersimpan...")
         cl = _make_ig_client()
         try:
             cl.load_settings(session_file)
+            # Validasi sesi dengan request ringan
             cl.get_timeline_feed()
-            print("[IG] Sesi masih valid, tidak perlu login ulang.")
-            cl.dump_settings(session_file)
+            print("[IG] Sesi masih valid.")
+            cl.dump_settings(session_file)  # refresh token
             return cl
         except ChallengeRequired:
-            print("[IG] Sesi trigger challenge — hapus sesi lama, coba fresh login...")
+            print("[IG] Sesi trigger challenge — hapus sesi, perlu verifikasi manual.")
+            try:
+                os.remove(session_file)
+                # Juga reset device fingerprint supaya terlihat seperti device baru
+                if os.path.exists(_DEVICE_FILE):
+                    os.remove(_DEVICE_FILE)
+            except Exception:
+                pass
+            _print_manual_steps(username)
+            raise
+        except Exception as e:
+            print(f"[IG] Sesi tidak valid ({type(e).__name__}), login ulang...")
             try:
                 os.remove(session_file)
             except Exception:
                 pass
-        except Exception as e:
-            print(f"[IG] Sesi tidak valid ({e}), login ulang dengan password...")
 
-    # Fresh login
+    # Fresh login dengan device fingerprint baru
+    print("[IG] Login fresh dengan akun dan device baru...")
     cl = _make_ig_client()
     try:
+        import time as _t
+        _t.sleep(random.uniform(2, 5))  # jeda sebelum login
         cl.login(username, password)
         cl.dump_settings(session_file)
         print("[IG] Login berhasil!")
         return cl
     except ChallengeRequired:
-        # Try to resolve challenge automatically
-        print("[IG] Challenge diperlukan, mencoba resolve otomatis...")
-        try:
-            cl.challenge_resolve(cl.last_json)
-            cl.dump_settings(session_file)
-            print("[IG] Challenge berhasil di-resolve!")
-            return cl
-        except Exception as ce:
-            print(f"[IG] Auto-resolve gagal: {ce}")
-            print("[IG] Akun perlu verifikasi manual:")
-            print("[IG] 1. Buka Instagram di browser/HP")
-            print(f"[IG] 2. Login dengan akun {username}")
-            print("[IG] 3. Selesaikan verifikasi yang diminta Instagram")
-            print("[IG] 4. Setelah berhasil, restart Watcher")
-            raise ChallengeRequired(f"Verifikasi manual diperlukan untuk {username}")
+        print("[IG] Instagram tetap minta challenge setelah fresh login.")
+        _print_manual_steps(username)
+        raise
     except Exception as e:
         print(f"[IG] Login gagal: {e}")
         raise
+
+
+def _print_manual_steps(username: str):
+    print("=" * 55)
+    print("[IG] VERIFIKASI MANUAL DIPERLUKAN:")
+    print(f"[IG] 1. Buka Instagram di HP/browser")
+    print(f"[IG] 2. Login akun: {username}")
+    print("[IG] 3. Selesaikan verifikasi (email/SMS/popup)")
+    print("[IG] 4. Klik 'Dismiss' kalau muncul popup bot warning")
+    print("[IG] 5. Setelah berhasil, restart Watcher dari dashboard")
+    print("=" * 55)
 
 
 # ── Group threads ─────────────────────────────────────────────────────────────
