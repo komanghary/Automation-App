@@ -27,36 +27,62 @@ from config import BASE_DIR, FFMPEG, TEMP_DIR
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
-def ig_login(username: str, password: str) -> IGClient:
+def _make_ig_client() -> IGClient:
     cl = IGClient()
     cl.delay_range = [1, 3]
+    # Handle bloks-type challenge (step_name=STEP_NAME) — accept and move on
+    def _challenge_code_handler(username, choice):
+        print(f"[IG] Challenge kode diminta untuk {username}, pilihan={choice}")
+        return input(f"[IG] Masukkan kode verifikasi IG untuk {username}: ").strip()
+    cl.challenge_code_handler = _challenge_code_handler
+    return cl
+
+
+def ig_login(username: str, password: str) -> IGClient:
     session_file = os.path.join(BASE_DIR, f"{username}_session.json")
 
+    # Try loading existing session
     if os.path.exists(session_file):
         print("[IG] Memuat sesi tersimpan...")
+        cl = _make_ig_client()
         try:
             cl.load_settings(session_file)
-            # Validate session without triggering full re-login
             cl.get_timeline_feed()
             print("[IG] Sesi masih valid, tidak perlu login ulang.")
-            cl.dump_settings(session_file)  # refresh expiry
+            cl.dump_settings(session_file)
             return cl
         except ChallengeRequired:
-            print("[IG] Instagram minta verifikasi. Login manual dulu di browser/HP.")
-            raise
+            print("[IG] Sesi trigger challenge — hapus sesi lama, coba fresh login...")
+            try:
+                os.remove(session_file)
+            except Exception:
+                pass
         except Exception as e:
             print(f"[IG] Sesi tidak valid ({e}), login ulang dengan password...")
-            cl = IGClient()
-            cl.delay_range = [1, 3]
 
+    # Fresh login
+    cl = _make_ig_client()
     try:
         cl.login(username, password)
         cl.dump_settings(session_file)
         print("[IG] Login berhasil!")
         return cl
     except ChallengeRequired:
-        print("[IG] Instagram minta verifikasi. Login manual dulu di browser/HP.")
-        raise
+        # Try to resolve challenge automatically
+        print("[IG] Challenge diperlukan, mencoba resolve otomatis...")
+        try:
+            cl.challenge_resolve(cl.last_json)
+            cl.dump_settings(session_file)
+            print("[IG] Challenge berhasil di-resolve!")
+            return cl
+        except Exception as ce:
+            print(f"[IG] Auto-resolve gagal: {ce}")
+            print("[IG] Akun perlu verifikasi manual:")
+            print("[IG] 1. Buka Instagram di browser/HP")
+            print(f"[IG] 2. Login dengan akun {username}")
+            print("[IG] 3. Selesaikan verifikasi yang diminta Instagram")
+            print("[IG] 4. Setelah berhasil, restart Watcher")
+            raise ChallengeRequired(f"Verifikasi manual diperlukan untuk {username}")
     except Exception as e:
         print(f"[IG] Login gagal: {e}")
         raise
