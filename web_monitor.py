@@ -14,6 +14,7 @@ from typing import Dict, Optional, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, Body, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 
@@ -27,6 +28,12 @@ DATA_DIR   = os.path.join(BASE_DIR, "data")
 UI_FILE    = os.path.join(BASE_DIR, "monitor_ui.html")
 
 app = FastAPI(title="Coroco House Monitor")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # ── Process registry ──────────────────────────────────────────────────────────
 
@@ -60,6 +67,11 @@ PROCESSES = {
     "books": {
         "label": "1% Perday Book Worker",
         "cmd": [sys.executable, os.path.join(BASE_DIR, "book_worker.py")],
+        "cwd": BASE_DIR,
+    },
+    "tunnel": {
+        "label": "Cloudflare Tunnel",
+        "cmd": [os.path.join(BASE_DIR, "cloudflared.exe"), "tunnel", "--protocol", "http2", "--url", "http://localhost:8080"],
         "cwd": BASE_DIR,
     },
 }
@@ -549,6 +561,18 @@ async def api_kill_duplicates(name: str, x_monitor_password: str = Header(defaul
     return {"killed": killed, "keep": keep_pid}
 
 
+@app.websocket("/ws/pty-proxy")
+async def ws_pty_proxy_early(websocket: WebSocket):
+    await _ws_proxy(websocket, "/pty")
+
+@app.websocket("/ws/claude-proxy")
+async def ws_claude_proxy_early(websocket: WebSocket):
+    await _ws_proxy(websocket, "/claude-pty")
+
+@app.websocket("/ws/terminal-proxy")
+async def ws_terminal_proxy_early(websocket: WebSocket):
+    await _ws_proxy(websocket, "/terminal")
+
 @app.websocket("/ws/{name}")
 async def ws_logs(websocket: WebSocket, name: str):
     if name not in PROCESSES:
@@ -689,6 +713,20 @@ async def book_script(book_id: str, part: int):
         return JSONResponse({"error": "no script"}, status_code=404)
     return {"script": script}
 
+@app.delete("/api/books/{book_id}")
+async def book_delete(book_id: str):
+    """Delete a book and all its files."""
+    import shutil
+    from book_processor import BOOKS_DIR
+    # Sanitize: only allow alphanumeric + underscore
+    if not all(c.isalnum() or c == '_' for c in book_id):
+        return JSONResponse({"error": "invalid book_id"}, status_code=400)
+    book_dir = BOOKS_DIR / book_id
+    if not book_dir.exists():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    shutil.rmtree(book_dir)
+    return {"status": "deleted"}
+
 @app.post("/api/books/process")
 async def books_process(body: dict = Body(...)):
     """Trigger book processing from a PDF path (called by Discord bot)."""
@@ -806,6 +844,35 @@ async def ws_book_progress(websocket: WebSocket, upload_id: str):
         pass
     finally:
         _book_progress_subs.get(upload_id, set()).discard(websocket)
+
+
+# ── PTY WebSocket Proxy (forwards to pty_server on port 8081) ─────────────────
+# Needed so Cloudflare tunnel (HTTPS) can reach PTY over wss:// via port 8080
+
+async def _ws_proxy(client: WebSocket, path: str):
+    """Bidirectional WebSocket proxy between client and pty_server."""
+    import websockets as _wss
+    await client.accept()
+    try:
+        async with _wss.connect(f"ws://127.0.0.1:8081{path}") as server:
+            async def c_to_s():
+                try:
+                    while True:
+                        msg = await client.receive_text()
+                        await server.send(msg)
+                except Exception:
+                    pass
+
+            async def s_to_c():
+                try:
+                    async for msg in server:
+                        await client.send_text(msg if isinstance(msg, str) else msg.decode())
+                except Exception:
+                    pass
+
+            await asyncio.gather(c_to_s(), s_to_c())
+    except Exception:
+        pass
 
 
 # ── Auto-start on launch ──────────────────────────────────────────────────────
